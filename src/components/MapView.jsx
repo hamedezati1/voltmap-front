@@ -1,15 +1,19 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { svgRaw } from "../assets/svg";
 
-export default function MapView({ stations, onPinClick }) {
+export default function MapView({ stations, onPinClick, onMapInteract }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
+  const onMapInteractRef = useRef(onMapInteract);
+
+  onMapInteractRef.current = onMapInteract;
 
   useEffect(() => {
-    if (mapInstanceRef.current) return;
-    if (!window.L) return;
+    if (!mapRef.current || mapInstanceRef.current) return;
 
-    const L = window.L;
     const map = L.map(mapRef.current, {
       center: [35.7219, 51.3347],
       zoom: 12,
@@ -20,15 +24,33 @@ export default function MapView({ stations, onPinClick }) {
       attribution: "© OpenStreetMap",
     }).addTo(map);
 
+    const handleInteract = () => onMapInteractRef.current?.();
+
+    map.on("movestart", handleInteract);
+    map.on("zoomstart", handleInteract);
+
     mapInstanceRef.current = map;
+
+    requestAnimationFrame(() => map.invalidateSize());
+
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    observer.observe(mapRef.current);
+
+    return () => {
+      map.off("movestart", handleInteract);
+      map.off("zoomstart", handleInteract);
+      observer.disconnect();
+      map.remove();
+      mapInstanceRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !window.L) return;
-    const L = window.L;
+    if (!map) return;
 
-    // Clear old markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
@@ -47,32 +69,22 @@ export default function MapView({ stations, onPinClick }) {
           box-shadow: 0 2px 8px rgba(0,0,0,0.25);
           border: 2px solid white;
         ">
-          <span style="transform: rotate(45deg); font-size: 16px;">⚡</span>
+          <span style="transform: rotate(45deg); display:flex; align-items:center; justify-content:center;">${svgRaw.zapMarker}</span>
         </div>`,
         iconSize: [36, 36],
         iconAnchor: [18, 36],
         popupAnchor: [0, -36],
       });
 
-      const marker = L.marker([s.lat, s.lng], { icon }).addTo(map).bindPopup(`
+      const marker = L.marker([s.lat, s.lng], { icon })
+        .addTo(map)
+        .bindPopup(`
           <div style="font-family: Vazirmatn, sans-serif; direction: rtl; min-width: 160px;">
-            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">${
-              s.name
-            }</div>
-            <div style="font-size: 12px; color: #888; margin-bottom: 6px;">${
-              s.city
-            }</div>
+            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">${s.name}</div>
+            <div style="font-size: 12px; color: #888; margin-bottom: 6px;">${s.city}</div>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <span style="font-size: 11px; background: ${
-                isAvailable ? "#e8faf0" : "#fef3e2"
-              }; color: ${
-        isAvailable ? "#27AE60" : "#E67E22"
-      }; padding: 2px 8px; border-radius: 12px;">${
-        isAvailable ? "خالی" : "شلوغ"
-      }</span>
-              <span style="font-size: 11px; color: #555;">${s.power}kW · ${
-        s.type
-      }</span>
+              <span style="font-size: 11px; background: ${isAvailable ? "#e8faf0" : "#fef3e2"}; color: ${isAvailable ? "#27AE60" : "#E67E22"}; padding: 2px 8px; border-radius: 12px;">${isAvailable ? "خالی" : "شلوغ"}</span>
+              <span style="font-size: 11px; color: #555;">${s.power}kW · ${s.type}</span>
             </div>
           </div>
         `);
@@ -83,7 +95,7 @@ export default function MapView({ stations, onPinClick }) {
 
       markersRef.current.push(marker);
     });
-  }, [stations]);
+  }, [stations, onPinClick]);
 
   return <div ref={mapRef} style={{ height: "100%", width: "100%" }} />;
 }

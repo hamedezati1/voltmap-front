@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, User } from 'lucide-react'
+import { Bell, User, Zap } from 'lucide-react'
 
 export default function Header({ onAdminClick }) {
   const navigate = useNavigate()
@@ -8,7 +8,7 @@ export default function Header({ onAdminClick }) {
     <div className="bg-white flex items-center justify-between px-4 py-3 border-b border-gray-100">
       <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
         <div style={{ background: 'linear-gradient(135deg,#5edc1f,#1a8a40)', borderRadius:10, width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <span style={{ fontSize:22 }}>⚡</span>
+          <Zap size={22} color="#fff" fill="#fff" />
         </div>
         <div>
           <div style={{ fontSize:19, fontWeight:700, color:'#1a1a1a', lineHeight:1.2 }}>ولت<span style={{ color:'#2ECC71' }}>مپ</span></div>

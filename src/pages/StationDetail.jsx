@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowRight, MapPin, Zap, Clock, DollarSign, Star, Navigation, RefreshCw } from 'lucide-react'
-import { addReview, updateStation } from '../data/stations'
+import { addStationReview, updateStationStatus } from '../api'
 
 const STATUSES = [
   { value:'available', label:'خلوت', color:'#27AE60', bg:'#e8faf0' },
@@ -27,13 +27,18 @@ export default function StationDetail({ stations, setStations }) {
 
   const currentStatus = STATUSES.find(s => s.value === station.status) || STATUSES[0]
 
-  const handleStatus = (val) => {
-    setStations(updateStation(station.id, { status: val }))
+  const handleStatus = async (val) => {
+    const updated = await updateStationStatus(station.id, val)
+    setStations(updated)
   }
 
-  const handleAddReview = () => {
+  const handleAddReview = async () => {
     if (!reviewText.trim()) return
-    const updated = addReview(station.id, { user: reviewName || 'کاربر ناشناس', text: reviewText, rating: reviewRating })
+    const updated = await addStationReview(station.id, {
+      user: reviewName || 'کاربر ناشناس',
+      text: reviewText,
+      rating: reviewRating,
+    })
     setStations(updated)
     setReviewText(''); setReviewName(''); setReviewRating(5); setShowForm(false)
   }

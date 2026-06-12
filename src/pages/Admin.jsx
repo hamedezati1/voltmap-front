@@ -6,7 +6,8 @@ import {
   RefreshCw, Star, Upload, X, CheckCircle, AlertCircle,
   Clock, PowerOff, Search, ChevronLeft, ChevronRight, Menu
 } from 'lucide-react'
-import { addStation, deleteStation, updateStation } from '../data/stations'
+import { createStation, deleteStation, updateStation } from '../api'
+import StatusDonutChart from '../components/StatusDonutChart'
 
 const NAV = [
   { key:'dashboard', Icon:LayoutDashboard, label:'داشبورد' },
@@ -62,21 +63,24 @@ export default function Admin({ stations, setStations }) {
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.name.trim() || !form.city.trim()) return alert('نام و شهر را وارد کنید')
-    setStations(addStation({ ...form, image: imagePreview }))
+    const updated = await createStation({ ...form, image: imagePreview })
+    setStations(updated)
     setForm(EMPTY_FORM); setImagePreview('')
     setSaved(true); setTimeout(() => { setSaved(false); setAddMode(false) }, 1500)
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('حذف شود؟')) return
-    setStations(deleteStation(id))
+    const updated = await deleteStation(id)
+    setStations(updated)
   }
 
-  const handleToggleStatus = (id, status) => {
+  const handleToggleStatus = async (id, status) => {
     const next = STATUSES[(STATUSES.findIndex(s => s.value === status) + 1) % STATUSES.length].value
-    setStations(updateStation(id, { status: next }))
+    const updated = await updateStation(id, { status: next })
+    setStations(updated)
   }
 
   const handleImage = (e) => {
@@ -272,25 +276,12 @@ export default function Admin({ stations, setStations }) {
               <div style={{ background:'#fff', borderRadius:16, padding:22, border:'1px solid #eef0f3' }}>
                 <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:20 }}>وضعیت شارژرها</div>
                 <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-                  <div style={{ position:'relative', width:140, height:140 }}>
-                    <svg viewBox="0 0 36 36" style={{ width:'100%', height:'100%', transform:'rotate(-90deg)' }}>
-                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f0f0f0" strokeWidth="3.5"/>
-                      {stations.length > 0 && <>
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#2ECC71" strokeWidth="3.5"
-                          strokeDasharray={`${(available/stations.length)*100} 100`} strokeLinecap="round"/>
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F39C12" strokeWidth="3.5"
-                          strokeDasharray={`${(busy/stations.length)*100} 100`}
-                          strokeDashoffset={`${-((available/stations.length)*100)}`} strokeLinecap="round"/>
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#3498DB" strokeWidth="3.5"
-                          strokeDasharray={`${(waiting/stations.length)*100} 100`}
-                          strokeDashoffset={`${-(((available+busy)/stations.length)*100)}`} strokeLinecap="round"/>
-                      </>}
-                    </svg>
-                    <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-                      <div style={{ fontSize:24, fontWeight:700, color:'#1a1a1a' }}>{stations.length}</div>
-                      <div style={{ fontSize:11, color:'#aaa' }}>جمع کل</div>
-                    </div>
-                  </div>
+                  <StatusDonutChart
+                    total={stations.length}
+                    available={available}
+                    busy={busy}
+                    waiting={waiting}
+                  />
                 </div>
                 {STATUSES.map(s => {
                   const count = stations.filter(st => st.status === s.value).length
@@ -455,13 +446,15 @@ export default function Admin({ stations, setStations }) {
                 </div>
 
                 {saved && (
-                  <div style={{ background:'#e8faf0', color:'#27AE60', padding:12, borderRadius:12, textAlign:'center', fontSize:13, marginBottom:14, fontWeight:600 }}>
-                    ✅ ایستگاه با موفقیت اضافه شد!
+                  <div style={{ background:'#e8faf0', color:'#27AE60', padding:12, borderRadius:12, textAlign:'center', fontSize:13, marginBottom:14, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                    <CheckCircle size={16} />
+                    ایستگاه با موفقیت اضافه شد!
                   </div>
                 )}
                 <button onClick={handleAdd}
-                  style={{ background:'#2ECC71', color:'#fff', border:'none', borderRadius:12, padding:'13px 28px', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn', boxShadow:'0 4px 14px rgba(46,204,113,0.3)' }}>
-                  ⚡ ثبت ایستگاه
+                  style={{ background:'#2ECC71', color:'#fff', border:'none', borderRadius:12, padding:'13px 28px', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn', boxShadow:'0 4px 14px rgba(46,204,113,0.3)', display:'flex', alignItems:'center', gap:8 }}>
+                  <Zap size={16} />
+                  ثبت ایستگاه
                 </button>
               </div>
             )}

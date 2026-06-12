@@ -63,6 +63,18 @@ body {
   transition: margin-right 0.25s cubic-bezier(0.4,0,0.2,1);
 }
 
+/* Splash animations */
+@keyframes splash-fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes splash-pulse {
+  0%, 100% { opacity: 0.4; width: 6px; }
+  50% { opacity: 1; width: 24px; }
+}
+.splash-logo { animation: splash-fade-up 0.8s ease forwards; }
+.splash-dot { animation: splash-pulse 1.4s ease-in-out infinite; }
+
 /* Animations */
 @keyframes ping-once {
   0% { transform: scale(1); opacity: 1; }
@@ -73,6 +85,25 @@ body {
 .chip { transition: all 0.2s ease; }
 .station-card { transition: background 0.15s ease; }
 .station-card:active { background: #f9f9f9; }
+
+/* Map page — bottom sheet */
+.map-panel { will-change: flex; }
+.station-sheet { will-change: flex; }
+.map-control-btn {
+  width: 36px;
+  height: 36px;
+  background: #fff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  border: none;
+  cursor: pointer;
+}
+.sheet-handle:active .sheet-handle-bar {
+  background: #2ECC71;
+}
 
 /* Table hover */
 .admin-table tr:hover td { background: #fafafa; }
