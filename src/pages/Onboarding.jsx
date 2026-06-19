@@ -53,12 +53,24 @@ export default function Onboarding() {
 
       {/* Content */}
       <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-        <div
-          className="mb-10 flex h-36 w-36 items-center justify-center rounded-[2rem] transition-all duration-500"
-          style={{ background: slide.bg }}
-        >
-          <Icon size={64} color={slide.color} strokeWidth={1.5} />
-        </div>
+<div
+  className="mb-10 flex items-center justify-center transition-all duration-500"
+>
+  {slide.image ? (
+    <img
+      src={slide.image}
+      alt={slide.title}
+      className="w-72 max-w-full object-contain"
+    />
+  ) : (
+    <div
+      className="flex h-36 w-36 items-center justify-center rounded-[2rem]"
+      style={{ background: slide.bg }}
+    >
+      <Icon size={64} color={slide.color} strokeWidth={1.5} />
+    </div>
+  )}
+</div>
         <h2 className="mb-4 text-2xl font-bold text-gray-900">{slide.title}</h2>
         <p className="max-w-xs text-sm leading-7 text-gray-500">{slide.description}</p>
       </div>
