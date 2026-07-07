@@ -49,7 +49,7 @@ export const mockAuth = {
     }
     const session = {
       token: `mock-token-${user.id}`,
-      user: { id: user.id, name: user.name, email: user.email, phone: user.phone },
+      user: { id: user.id, name: user.name, email: user.email, phone: user.phone, membership: user.membership ?? 'رایگان' },
     }
     saveSession(session)
     return session
@@ -74,12 +74,13 @@ export const mockAuth = {
       email,
       phone,
       password,
+      membership: 'رایگان', // TODO: وقتی به دیتابیس وصل شد از payment سرویس بگیر
       createdAt: new Date().toISOString(),
     }
     writeUsers([...users, newUser])
     const session = {
       token: `mock-token-${newUser.id}`,
-      user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone },
+      user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone, membership: newUser.membership },
     }
     saveSession(session)
     return session
@@ -94,4 +95,19 @@ export const mockAuth = {
     await delay(200)
     return getStoredSession()
   },
+}
+
+// تغییر membership کاربر (برای ادمین)
+// TODO: PATCH /admin/users/:id/membership
+export function updateUserMembership(userId, membership) {
+  const users = readUsers()
+  const updated = users.map(u => u.id === userId ? { ...u, membership } : u)
+  writeUsers(updated)
+  // آپدیت session هم بشه
+  const session = getStoredSession()
+  if (session?.user?.id === userId) {
+    const newSession = { ...session, user: { ...session.user, membership } }
+    saveSession(newSession)
+  }
+  return true
 }

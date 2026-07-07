@@ -11,7 +11,7 @@
  *   PATCH  /stations/:id/status   — تغییر وضعیت
  */
 import { apiClient, USE_MOCK } from './client'
-import { mockStations } from '../mocks/stations'
+import { mockStations, crowdReports } from '../mocks/stations'
 
 export async function fetchStations(params = {}) {
   if (USE_MOCK) {
@@ -69,4 +69,45 @@ export async function updateStationStatus(id, status) {
     return mockStations.getAll()
   }
   return apiClient(`/stations/${id}/status`, { method: 'PATCH', body: { status } })
+}
+
+// ─── گزارش وضعیت شلوغی از کاربران ────────────────────────────────────────
+// TODO: وقتی به دیتابیس وصل شد، این توابع باید به endpoint‌های واقعی وصل شوند
+
+
+/**
+ * ثبت گزارش حضور کاربر در ایستگاه
+ * @param {number} stationId - شناسه ایستگاه
+ * @param {'busy'|'available'} type - نوع گزارش
+ * TODO: POST /stations/:id/crowd-report
+ */
+export async function submitCrowdReport(stationId, type) {
+  if (USE_MOCK) {
+    const computedStatus = crowdReports.addReport(stationId, type)
+    // اگه به حد نصاب رسید وضعیت ایستگاه رو آپدیت کن
+    if (computedStatus) {
+      await mockStations.update(stationId, { status: computedStatus })
+      return { status: computedStatus, updated: true }
+    }
+    return { status: null, updated: false }
+  }
+  return apiClient(`/stations/${stationId}/crowd-report`, { method: 'POST', body: { type } })
+}
+
+/**
+ * دریافت آمار گزارش‌های یک ایستگاه (برای ادمین)
+ * TODO: GET /stations/:id/crowd-reports
+ */
+export function getCrowdStats(stationId) {
+  if (USE_MOCK) return crowdReports.getStats(stationId)
+  return apiClient(`/stations/${stationId}/crowd-reports`)
+}
+
+/**
+ * دریافت خلاصه گزارش‌های همه ایستگاه‌ها (برای داشبورد ادمین)
+ * TODO: GET /stations/crowd-reports/summary
+ */
+export function getAllCrowdStats() {
+  if (USE_MOCK) return crowdReports.getAllStats()
+  return apiClient('/stations/crowd-reports/summary')
 }

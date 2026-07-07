@@ -78,3 +78,80 @@ export const mockStations = {
     return updated
   },
 }
+
+// ─── گزارش وضعیت کاربری ────────────────────────────────────────────────────
+// TODO: وقتی به دیتابیس وصل شد، این گزارش‌ها باید در جدول station_crowd_reports ذخیره شوند
+// هر گزارش شامل: stationId، نوع (available/busy)، timestamp، و userId (اختیاری)
+
+const CROWD_KEY = 'voltmap_crowd_reports'
+const REPORT_WINDOW_MS = 30 * 60 * 1000  // پنجره زمانی: ۳۰ دقیقه اخیر برای محاسبه میانگین
+const MIN_REPORTS = 2  // حداقل تعداد گزارش برای تأثیرگذاری روی وضعیت
+
+function readCrowdReports() {
+  try {
+    const raw = localStorage.getItem(CROWD_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
+function writeCrowdReports(data) {
+  try { localStorage.setItem(CROWD_KEY, JSON.stringify(data)) } catch {}
+}
+
+export const crowdReports = {
+  // ثبت گزارش جدید از کاربر
+  // TODO: POST /stations/:id/crowd-report
+  addReport(stationId, type) {
+    const all = readCrowdReports()
+    if (!all[stationId]) all[stationId] = []
+    all[stationId].push({ type, ts: Date.now() })
+    writeCrowdReports(all)
+    return this.computeStatus(stationId, all[stationId])
+  },
+
+  // الگوریتم تعیین وضعیت بر اساس گزارش‌های کاربران
+  // منطق: در پنجره ۳۰ دقیقه اخیر، اگه ≥ MIN_REPORTS گزارش باشه
+  //       و اکثریت (>۵۰٪) بگن شلوغه → busy، وگرنه → available
+  // TODO: GET /stations/:id/crowd-status
+  computeStatus(stationId, reports) {
+    if (!reports || reports.length === 0) return null
+    const cutoff = Date.now() - REPORT_WINDOW_MS
+    const recent = reports.filter(r => r.ts > cutoff)
+    if (recent.length < MIN_REPORTS) return null
+    const busyCount = recent.filter(r => r.type === 'busy').length
+    const ratio = busyCount / recent.length
+    return ratio > 0.5 ? 'busy' : 'available'
+  },
+
+  // دریافت وضعیت محاسبه‌شده برای یک ایستگاه
+  getStatus(stationId) {
+    const all = readCrowdReports()
+    return this.computeStatus(stationId, all[stationId])
+  },
+
+  // آمار گزارش‌های یک ایستگاه (برای نمایش در ادمین)
+  // TODO: GET /stations/:id/crowd-reports
+  getStats(stationId) {
+    const all = readCrowdReports()
+    const reports = all[stationId] || []
+    const cutoff = Date.now() - REPORT_WINDOW_MS
+    const recent = reports.filter(r => r.ts > cutoff)
+    return {
+      total: reports.length,
+      recent: recent.length,
+      busyCount: recent.filter(r => r.type === 'busy').length,
+      availableCount: recent.filter(r => r.type === 'available').length,
+      computedStatus: this.computeStatus(stationId, reports),
+    }
+  },
+
+  // دریافت آمار همه ایستگاه‌ها (برای داشبورد ادمین)
+  // TODO: GET /stations/crowd-reports/summary
+  getAllStats() {
+    const all = readCrowdReports()
+    return Object.entries(all).map(([id, reports]) => ({
+      stationId: Number(id),
+      ...this.getStats(Number(id)),
+    }))
+  },
+}

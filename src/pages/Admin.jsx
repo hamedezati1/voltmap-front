@@ -1,20 +1,32 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, MapPin, Zap, Users, BarChart2, Settings,
   LogOut, Bell, TrendingUp, TrendingDown, Plus, Trash2,
   RefreshCw, Star, Upload, X, CheckCircle, AlertCircle,
-  Clock, PowerOff, Search, ChevronLeft, ChevronRight, Menu
+  Clock, PowerOff, Search, ChevronLeft, ChevronRight, Menu,
+  Phone, Mail, Calendar, Newspaper, Pin, PinOff, Pencil, Crown, ChevronDown,
+  ClipboardList, ThumbsUp, ThumbsDown, ExternalLink, Eye
 } from 'lucide-react'
-import { createStation, deleteStation, updateStation } from '../api'
+import { createStation, deleteStation, updateStation, createNews, deleteNews, updateNews, fetchNews, getAllCrowdStats, fetchStationReports, approveStationReport, rejectStationReport, deleteStationReport } from '../api'
+import { updateUserMembership } from '../mocks/auth'
 import StatusDonutChart from '../components/StatusDonutChart'
+
+function readUsers() {
+  try {
+    const raw = localStorage.getItem('voltmap_users')
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
 
 const NAV = [
   { key:'dashboard', Icon:LayoutDashboard, label:'داشبورد' },
   { key:'stations',  Icon:MapPin,          label:'ایستگاه‌ها' },
   { key:'chargers',  Icon:Zap,             label:'شارژرها' },
   { key:'users',     Icon:Users,           label:'کاربران و نظرات' },
-  { key:'reports',   Icon:BarChart2,       label:'گزارش‌ها' },
+  { key:'news',         Icon:Newspaper,      label:'اخبار' },
+  { key:'stationreports', Icon:ClipboardList, label:'ایستگاه‌های گزارش‌شده' },
+  { key:'reports',      Icon:BarChart2,      label:'گزارش‌ها' },
   { key:'settings',  Icon:Settings,        label:'تنظیمات' },
 ]
 
@@ -33,7 +45,9 @@ const EMPTY_FORM = {
 
 function StatCard({ label, value, sub, subUp, Icon, color, bg }) {
   return (
-    <div style={{ background:'#fff', borderRadius:16, padding:'20px 22px', border:'1px solid #eef0f3', flex:1, minWidth:160 }}>
+    <div style={{
+      background:'#fff', borderRadius:16, padding:'20px 22px', border:'1px solid #eef0f3', flex:1, minWidth:160,
+    }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
         <span style={{ fontSize:13, color:'#888', fontFamily:'Vazirmatn' }}>{label}</span>
         <div style={{ width:42, height:42, borderRadius:12, background:bg, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -55,9 +69,142 @@ export default function Admin({ stations, setStations }) {
   const [collapsed, setCollapsed] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [addMode, setAddMode] = useState(false)
+  const [editStation, setEditStation] = useState(null) // ایستگاهی که در حال ویرایش است
   const [saved, setSaved] = useState(false)
   const [search, setSearch] = useState('')
   const [imagePreview, setImagePreview] = useState('')
+  const [userSearch, setUserSearch] = useState('')
+  const [membershipMenu, setMembershipMenu] = useState(null) // id کاربری که dropdown اشتراکش باز است
+  const [membershipMenuPos, setMembershipMenuPos] = useState({ top: 0, left: 0 }) // موقعیت dropdown
+
+  // کاربران مستقیم از localStorage خوانده می‌شن (سینک با mocks/auth.js)
+  const [users, setUsers] = useState(() => readUsers())
+
+  // گزارش‌های وضعیت کاربری ایستگاه‌ها
+  // TODO: GET /stations/crowd-reports/summary
+  const [crowdStats, setCrowdStats] = useState([])
+  useEffect(() => {
+    setCrowdStats(getAllCrowdStats())
+  }, [])
+
+  // ایستگاه‌های گزارش‌شده توسط کاربران
+  // TODO: GET /station-reports
+  const [stationReports, setStationReports] = useState([])
+  const [srLoading, setSrLoading] = useState(false)
+  const [rejectModal, setRejectModal] = useState(null) // id گزارشی که داره رد میشه
+  const [rejectReason, setRejectReason] = useState('')
+
+  useEffect(() => {
+    if (active === 'stationreports') {
+      setSrLoading(true)
+      fetchStationReports().then(setStationReports).finally(() => setSrLoading(false))
+    }
+  }, [active])
+
+  const handleApproveReport = async (report) => {
+    // تأیید گزارش → ایستگاه به لیست اضافه می‌شه
+    // TODO: این باید یه transaction اتمیک در دیتابیس باشه
+    await approveStationReport(report.id)
+    // اضافه کردن ایستگاه به لیست stations
+    const newStation = await createStation({
+      name:      report.name,
+      city:      report.city,
+      address:   report.address,
+      lat:       report.lat,
+      lng:       report.lng,
+      type:      report.type,
+      connector: report.connector,
+      power:     report.power || 22,
+      ports:     report.ports || 1,
+      status:    'available',
+      price:     report.price || '—',
+      hours:     report.hours || '۲۴ ساعته',
+      image:     report.image || null,
+      reviews:   [],
+    })
+    setStationReports(prev => prev.map(r => r.id === report.id ? { ...r, status: 'approved' } : r))
+    alert(`✅ ایستگاه «${report.name}» تأیید و به لیست اضافه شد`)
+  }
+
+  const handleRejectReport = async () => {
+    if (!rejectModal) return
+    await rejectStationReport(rejectModal, rejectReason)
+    setStationReports(prev => prev.map(r => r.id === rejectModal ? { ...r, status: 'rejected' } : r))
+    setRejectModal(null); setRejectReason('')
+  }
+
+  // اخبار
+  const [newsList, setNewsList] = useState([])
+  const [newsLoading, setNewsLoading] = useState(true)
+  const [newsForm, setNewsForm] = useState({ title:'', body:'', category:'ایستگاه', pinned:false, image:null })
+  const [newsAddMode, setNewsAddMode] = useState(false)
+  const [newsEditId, setNewsEditId] = useState(null)
+  const [newsSaving, setNewsSaving] = useState(false)
+  const newsImgRef = useRef(null)
+
+  useEffect(() => {
+    fetchNews().then(setNewsList).finally(() => setNewsLoading(false))
+  }, [])
+
+  // تغییر نوع اشتراک کاربر
+  // TODO: PATCH /admin/users/:id/membership
+  const handleMembershipChange = (userId, membership) => {
+    updateUserMembership(userId, membership)
+    setUsers(readUsers())
+    setMembershipMenu(null)
+  }
+
+  // حذف کاربر
+  // TODO: DELETE /admin/users/:id
+  const handleDeleteUser = (userId) => {
+    if (!window.confirm('آیا از حذف این کاربر مطمئن هستید؟')) return
+    try {
+      const raw = localStorage.getItem('voltmap_users')
+      const users = raw ? JSON.parse(raw) : []
+      const updated = users.filter(u => u.id !== userId)
+      localStorage.setItem('voltmap_users', JSON.stringify(updated))
+      setUsers(updated)
+    } catch {}
+  }
+
+  const handleNewsImage = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setNewsForm(f => ({ ...f, image: ev.target.result }))
+    reader.readAsDataURL(file)
+  }
+
+  const handleNewsSave = async () => {
+    if (!newsForm.title.trim() || !newsForm.body.trim()) return
+    setNewsSaving(true)
+    try {
+      if (newsEditId) {
+        const updated = await updateNews(newsEditId, newsForm)
+        setNewsList(prev => prev.map(n => n.id === newsEditId ? updated : n))
+      } else {
+        const created = await createNews(newsForm)
+        setNewsList(prev => [created, ...prev])
+      }
+      setNewsForm({ title:'', body:'', category:'ایستگاه', pinned:false, image:null })
+      setNewsAddMode(false); setNewsEditId(null)
+    } finally { setNewsSaving(false) }
+  }
+
+  const handleNewsDelete = async (id) => {
+    await deleteNews(id)
+    setNewsList(prev => prev.filter(n => n.id !== id))
+  }
+
+  const handleNewsTogglePin = async (item) => {
+    const updated = await updateNews(item.id, { pinned: !item.pinned })
+    setNewsList(prev => prev.map(n => n.id === item.id ? updated : n))
+  }
+
+  const handleNewsEdit = (item) => {
+    setNewsForm({ title:item.title, body:item.body, category:item.category, pinned:item.pinned, image:item.image })
+    setNewsEditId(item.id); setNewsAddMode(true)
+  }
 
   const SIDEBAR_W = collapsed ? 72 : 240
 
@@ -65,10 +212,32 @@ export default function Admin({ stations, setStations }) {
 
   const handleAdd = async () => {
     if (!form.name.trim() || !form.city.trim()) return alert('نام و شهر را وارد کنید')
-    const updated = await createStation({ ...form, image: imagePreview })
-    setStations(updated)
+    if (editStation) {
+      // TODO: PATCH /stations/:id
+      const updated = await updateStation(editStation.id, { ...form, image: imagePreview || form.image })
+      setStations(updated)
+      setEditStation(null)
+    } else {
+      // TODO: POST /stations
+      const updated = await createStation({ ...form, image: imagePreview })
+      setStations(updated)
+    }
     setForm(EMPTY_FORM); setImagePreview('')
     setSaved(true); setTimeout(() => { setSaved(false); setAddMode(false) }, 1500)
+  }
+
+  const handleEditStart = (station) => {
+    setEditStation(station)
+    setForm({
+      name: station.name, city: station.city, address: station.address,
+      lat: station.lat, lng: station.lng, type: station.type,
+      connector: station.connector, power: station.power, ports: station.ports,
+      status: station.status, price: station.price || '', hours: station.hours || '۲۴ ساعته',
+      image: station.image || '',
+    })
+    setImagePreview(station.image || '')
+    setAddMode(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleDelete = async (id) => {
@@ -105,20 +274,30 @@ export default function Admin({ stations, setStations }) {
   const chartData = [120, 145, 130, 190, 175, 220, 180]
   const chartDays = ['۱۸ خرداد','۱۹','۲۰','۲۱','۲۲','۲۳','۲۴']
 
-  const inputStyle = { width:'100%', border:'1px solid #e8eaed', borderRadius:10, padding:'9px 13px', fontSize:13, fontFamily:'Vazirmatn', outline:'none', background:'#fff', color:'#1a1a1a' }
+  const inputStyle = {
+    width:'100%',
+    border:'1px solid rgba(255,255,255,0.12)',
+    borderRadius:10, padding:'9px 13px', fontSize:13,
+    fontFamily:'Vazirmatn', outline:'none',
+    background:'rgba(255,255,255,0.06)',
+    color:'#1a1a1a',
+  }
   const selectStyle = { ...inputStyle }
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', fontFamily:'Vazirmatn', direction:'rtl', background:'#f4f5f7' }}>
+    <div style={{ display:'flex', minHeight:'100vh', fontFamily:'Vazirmatn', direction:'rtl',
+      background: '#f4f5f7',
+    }}>
 
       {/* ════ SIDEBAR ════ */}
       <div style={{
-        width: SIDEBAR_W, background:'#0f1923', flexShrink:0,
+        width: SIDEBAR_W, flexShrink:0,
+        background: '#0f1923',
         display:'flex', flexDirection:'column',
         position:'fixed', top:0, right:0, height:'100vh',
         overflowY:'auto', overflowX:'hidden',
         transition:'width 0.25s cubic-bezier(0.4,0,0.2,1)', zIndex:100,
-        boxShadow:'0 0 40px rgba(0,0,0,0.2)'
+        boxShadow:'0 0 40px rgba(0,0,0,0.2)',
       }}>
         {/* Logo */}
         <div style={{ padding:'18px 16px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)', display:'flex', alignItems:'center', justifyContent: collapsed?'center':'space-between' }}>
@@ -136,7 +315,7 @@ export default function Admin({ stations, setStations }) {
             )}
           </div>
           {!collapsed && (
-            <button onClick={() => setCollapsed(true)} style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.3)', display:'flex', alignItems:'center' }}>
+            <button onClick={() => setCollapsed(true)} style={{ background:'none', border:'none', cursor:'pointer', color:'#aaa', display:'flex', alignItems:'center' }}>
               <ChevronRight size={18} />
             </button>
           )}
@@ -144,7 +323,7 @@ export default function Admin({ stations, setStations }) {
 
         {collapsed && (
           <div style={{ padding:'12px 0', display:'flex', justifyContent:'center' }}>
-            <button onClick={() => setCollapsed(false)} style={{ background:'rgba(255,255,255,0.08)', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.6)', borderRadius:8, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <button onClick={() => setCollapsed(false)} style={{ background:'rgba(255,255,255,0.08)', border:'none', cursor:'pointer', color:'#555', borderRadius:8, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Menu size={16} />
             </button>
           </div>
@@ -210,7 +389,11 @@ export default function Admin({ stations, setStations }) {
       <div style={{ flex:1, marginRight: SIDEBAR_W, transition:'margin-right 0.25s cubic-bezier(0.4,0,0.2,1)', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
 
         {/* Topbar */}
-        <div style={{ background:'#fff', borderBottom:'1px solid #eef0f3', padding:'14px 28px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:50 }}>
+        <div style={{
+          background:'#fff', borderBottom:'1px solid #f0f0f0',
+          padding:'14px 28px', display:'flex', alignItems:'center',
+          justifyContent:'space-between', position:'sticky', top:0, zIndex:50,
+        }}>
           <div>
             <div style={{ fontSize:22, fontWeight:700, color:'#1a1a1a', letterSpacing:'-0.3px' }}>
               {NAV.find(n => n.key === active)?.label}
@@ -242,10 +425,56 @@ export default function Admin({ stations, setStations }) {
             {/* Stats */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:24 }}>
               <StatCard label="تعداد ایستگاه‌ها" value={stations.length} sub="۳.۱٪ نسبت به ماه قبل" subUp Icon={MapPin} color="#2ECC71" bg="#e8faf0" />
-              <StatCard label="ایستگاه‌های خلوت" value={available} sub="در دسترس" subUp Icon={CheckCircle} color="#27AE60" bg="#d5f0e0" />
+              <StatCard label="کاربران ثبت‌نام‌شده" value={users.length} sub="در سیستم" subUp Icon={Users} color="#3498DB" bg="#EBF5FB" />
               <StatCard label="ایستگاه‌های شلوغ" value={busy} sub="مشغول" subUp={false} Icon={AlertCircle} color="#E67E22" bg="#fef3e2" />
               <StatCard label="نظرات کاربران" value={allReviews.length} sub="۸.۵٪ نسبت به ماه قبل" subUp Icon={Star} color="#F39C12" bg="#fef9e7" />
             </div>
+
+            {/* گزارش‌های وضعیت کاربری - فقط اگه گزارشی باشه نشون داده میشه */}
+            {/* TODO: این داده باید از GET /stations/crowd-reports/summary بیاد */}
+            {crowdStats.filter(c => c.recent > 0).length > 0 && (
+              <div style={{ background:'#fff', borderRadius:16, border:'1px solid #eef0f3', overflow:'hidden', marginBottom:20 }}>
+                <div style={{ padding:'14px 20px', borderBottom:'1px solid #f5f7fa', display:'flex', alignItems:'center', gap:8 }}>
+                  <Users size={16} color="#3498DB" />
+                  <span style={{ fontSize:14, fontWeight:700, color:'#1a1a1a' }}>گزارش‌های وضعیت کاربری (۳۰ دقیقه اخیر)</span>
+                  <span style={{ fontSize:11, color:'#aaa', marginRight:'auto' }}>الگوریتم: اگه ≥۲ گزارش و &gt;۵۰٪ شلوغ → وضعیت busy می‌شه</span>
+                </div>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
+                    <tr style={{ background:'#f8f9fb' }}>
+                      {['ایستگاه','گزارش خلوت','گزارش شلوغ','وضعیت محاسبه‌شده'].map((h,i) => (
+                        <th key={i} style={{ padding:'10px 16px', fontSize:12, color:'#888', fontWeight:600, textAlign:'right', fontFamily:'Vazirmatn', borderBottom:'1px solid #eef0f3' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {crowdStats.filter(c => c.recent > 0).map(c => {
+                      const st = stations.find(s => s.id === c.stationId)
+                      const computed = c.computedStatus
+                      return (
+                        <tr key={c.stationId} style={{ borderTop:'1px solid #f5f7fa' }}>
+                          <td style={{ padding:'10px 16px', fontSize:13, fontWeight:600, color:'#1a1a1a' }}>{st?.name || `ایستگاه #${c.stationId}`}</td>
+                          <td style={{ padding:'10px 16px' }}>
+                            <span style={{ fontSize:12, background:'#e8faf0', color:'#27AE60', padding:'2px 10px', borderRadius:20 }}>{c.availableCount}</span>
+                          </td>
+                          <td style={{ padding:'10px 16px' }}>
+                            <span style={{ fontSize:12, background:'#fef3e2', color:'#E67E22', padding:'2px 10px', borderRadius:20 }}>{c.busyCount}</span>
+                          </td>
+                          <td style={{ padding:'10px 16px' }}>
+                            {computed
+                              ? <span style={{ fontSize:12, fontWeight:600, background:computed==='busy'?'#fef3e2':'#e8faf0', color:computed==='busy'?'#E67E22':'#27AE60', padding:'3px 10px', borderRadius:20 }}>
+                                  {computed==='busy' ? 'شلوغ (آپدیت شد)' : 'خلوت (آپدیت شد)'}
+                                </span>
+                              : <span style={{ fontSize:11, color:'#aaa' }}>هنوز به حد نصاب نرسیده ({c.recent}/۲)</span>
+                            }
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Two cols */}
             <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:20, marginBottom:24 }}>
@@ -293,7 +522,7 @@ export default function Admin({ stations, setStations }) {
                         <span style={{ fontSize:13, color:'#555' }}>{s.label}</span>
                       </div>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <span style={{ fontSize:12, color:'#aaa' }}>{pct}٪</span>
+                        <span style={{ fontSize:12, color:'rgba(255,255,255,0.35)' }}>{pct}٪</span>
                         <span style={{ fontSize:13, fontWeight:600, color:'#1a1a1a', minWidth:20, textAlign:'left' }}>{count}</span>
                       </div>
                     </div>
@@ -361,7 +590,7 @@ export default function Admin({ stations, setStations }) {
             {addMode && (
               <div style={{ background:'#fff', borderRadius:16, padding:28, border:'1px solid #eef0f3', marginBottom:24 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-                  <span style={{ fontSize:16, fontWeight:700, color:'#1a1a1a' }}>ایستگاه جدید</span>
+                  <span style={{ fontSize:16, fontWeight:700, color:'#1a1a1a' }}>{editStation ? 'ویرایش ایستگاه' : 'ایستگاه جدید'}</span>
                   <button onClick={() => setAddMode(false)} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={20} color="#aaa" /></button>
                 </div>
 
@@ -399,15 +628,28 @@ export default function Admin({ stations, setStations }) {
 
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:14, marginBottom:14 }}>
                   <div>
-                    <label style={{ fontSize:12, color:'#888', display:'block', marginBottom:6 }}>نوع</label>
-                    <select value={form.type} onChange={e=>f('type',e.target.value)} style={selectStyle}>
-                      {['AC','DC','AC/DC'].map(o=><option key={o}>{o}</option>)}
+                    <label style={{ fontSize:12, color:'#888', display:'block', marginBottom:6 }}>نوع شارژر</label>
+                    <select value={form.type} onChange={e => {
+                      const t = e.target.value
+                      // وقتی type عوض می‌شه connector رو هم ریست کن
+                      const defaultConn = t === 'DC' ? 'CCS2' : t === 'AC' ? 'Type2' : 'CCS2+Type2'
+                      f('type', t)
+                      f('connector', defaultConn)
+                    }} style={selectStyle}>
+                      {['AC','DC','AC/DC'].map(o=><option key={o} >{o}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize:12, color:'#888', display:'block', marginBottom:6 }}>کانکتور</label>
+                    <label style={{ fontSize:12, color:'#888', display:'block', marginBottom:6 }}>
+                      کانکتور
+                      <span style={{ fontSize:10, color:'#aaa', marginRight:4 }}>
+                        {form.type === 'DC' ? '(DC نازل)' : form.type === 'AC' ? '(AC نازل)' : '(DC + AC نازل)'}
+                      </span>
+                    </label>
                     <select value={form.connector} onChange={e=>f('connector',e.target.value)} style={selectStyle}>
-                      {['Type2','CCS2','CHAdeMO'].map(o=><option key={o}>{o}</option>)}
+                      {form.type === 'DC' && ['CCS2','GB/T','CCS2+GB/T'].map(o=><option key={o} >{o}</option>)}
+                      {form.type === 'AC' && ['Type2','GB/T','Type2+GB/T'].map(o=><option key={o} >{o}</option>)}
+                      {form.type === 'AC/DC' && ['CCS2+Type2','CCS2+GB/T','Type2+GB/T','CCS2+GB/T+Type2'].map(o=><option key={o} >{o}</option>)}
                     </select>
                   </div>
                   <div>
@@ -451,11 +693,19 @@ export default function Admin({ stations, setStations }) {
                     ایستگاه با موفقیت اضافه شد!
                   </div>
                 )}
-                <button onClick={handleAdd}
-                  style={{ background:'#2ECC71', color:'#fff', border:'none', borderRadius:12, padding:'13px 28px', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn', boxShadow:'0 4px 14px rgba(46,204,113,0.3)', display:'flex', alignItems:'center', gap:8 }}>
-                  <Zap size={16} />
-                  ثبت ایستگاه
-                </button>
+                <div style={{ display:'flex', gap:10 }}>
+                  <button onClick={handleAdd}
+                    style={{ background:'#2ECC71', color:'#fff', border:'none', borderRadius:12, padding:'13px 28px', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn', boxShadow:'0 4px 14px rgba(46,204,113,0.3)', display:'flex', alignItems:'center', gap:8 }}>
+                    <Zap size={16} />
+                    {editStation ? 'ذخیره تغییرات' : 'ثبت ایستگاه'}
+                  </button>
+                  {editStation && (
+                    <button onClick={() => { setEditStation(null); setForm(EMPTY_FORM); setImagePreview(''); setAddMode(false) }}
+                      style={{ background:'#f5f5f5', color:'#555', border:'none', borderRadius:12, padding:'13px 22px', fontSize:14, cursor:'pointer', fontFamily:'Vazirmatn' }}>
+                      انصراف
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -500,10 +750,18 @@ export default function Admin({ stations, setStations }) {
                           </div>
                         </td>
                         <td style={{ padding:'12px 16px' }}>
-                          <button onClick={() => handleDelete(s.id)}
-                            style={{ background:'#FCEBEB', border:'none', borderRadius:9, padding:'7px 10px', cursor:'pointer', display:'flex', alignItems:'center' }}>
-                            <Trash2 size={14} color="#A32D2D" />
-                          </button>
+                          <div style={{ display:'flex', gap:6 }}>
+                            <button onClick={() => handleEditStart(s)}
+                              title="ویرایش"
+                              style={{ background:'#EBF5FB', border:'none', borderRadius:9, padding:'7px 10px', cursor:'pointer', display:'flex', alignItems:'center' }}>
+                              <Pencil size={14} color="#2980B9" />
+                            </button>
+                            <button onClick={() => handleDelete(s.id)}
+                              title="حذف"
+                              style={{ background:'#FCEBEB', border:'none', borderRadius:9, padding:'7px 10px', cursor:'pointer', display:'flex', alignItems:'center' }}>
+                              <Trash2 size={14} color="#A32D2D" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -520,45 +778,464 @@ export default function Admin({ stations, setStations }) {
           </>}
 
           {/* ── USERS & REVIEWS ── */}
-          {active === 'users' && <>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:24 }}>
-              <StatCard label="کل نظرات" value={allReviews.length} sub="نظر ثبت شده" subUp Icon={Star} color="#F39C12" bg="#fef9e7" />
-              <StatCard label="میانگین امتیاز" value={allReviews.length ? (allReviews.reduce((a,r)=>a+r.rating,0)/allReviews.length).toFixed(1) : '—'} sub="از ۵" subUp Icon={Star} color="#2ECC71" bg="#e8faf0" />
-              <StatCard label="ایستگاه‌های بدون نظر" value={stations.filter(s=>s.reviews.length===0).length} sub="نیاز به توجه" subUp={false} Icon={AlertCircle} color="#E67E22" bg="#fef3e2" />
-            </div>
-
-            <div style={{ background:'#fff', borderRadius:16, border:'1px solid #eef0f3', overflow:'hidden' }}>
-              <div style={{ padding:'18px 22px', borderBottom:'1px solid #f5f7fa', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:15, fontWeight:700, color:'#1a1a1a' }}>تمام نظرات کاربران</span>
-                <span style={{ fontSize:12, color:'#aaa' }}>{allReviews.length} نظر</span>
+          {active === 'users' && (() => {
+            const filteredUsers = users.filter(u =>
+              !userSearch || u.name?.includes(userSearch) || u.email?.includes(userSearch) || u.phone?.includes(userSearch)
+            )
+            return <>
+              {/* Stats row */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:24 }}>
+                <StatCard label="کل کاربران" value={users.length} sub="ثبت‌نام‌شده" subUp Icon={Users} color="#3498DB" bg="#EBF5FB" />
+                <StatCard label="اشتراک طلایی" value={users.filter(u=>u.membership==='طلایی').length} sub="کاربر فعال" subUp Icon={Crown} color="#F59E0B" bg="#fef9e7" />
+                <StatCard label="کل نظرات" value={allReviews.length} sub="نظر ثبت شده" subUp Icon={Star} color="#F39C12" bg="#fef9e7" />
+                <StatCard label="میانگین امتیاز" value={allReviews.length ? (allReviews.reduce((a,r)=>a+r.rating,0)/allReviews.length).toFixed(1) : '—'} sub="از ۵" subUp Icon={Star} color="#2ECC71" bg="#e8faf0" />
               </div>
-              <div style={{ padding:22 }}>
-                {allReviews.length === 0
-                  ? <p style={{ color:'#aaa', fontSize:14, textAlign:'center', padding:'40px 0' }}>هنوز هیچ نظری ثبت نشده</p>
-                  : allReviews.map((r, i) => (
-                    <div key={i} style={{ display:'flex', gap:16, paddingBottom:18, marginBottom:18, borderBottom:'1px solid #f5f7fa' }}>
-                      <div style={{ width:44, height:44, borderRadius:'50%', background:'#EBF5FB', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                        <Users size={18} color="#3498DB" />
+
+              {/* Users table */}
+              <div style={{ background:'#fff', borderRadius:16, border:'1px solid #eef0f3', overflow:'visible', marginBottom:24 }}>
+                <div style={{ padding:'18px 22px', borderBottom:'1px solid #f5f7fa', display:'flex', justifyContent:'space-between', alignItems:'center', gap:16 }}>
+                  <span style={{ fontSize:15, fontWeight:700, color:'#1a1a1a' }}>کاربران ثبت‌نام‌شده</span>
+                  <div style={{ position:'relative' }}>
+                    <Search size={14} color="#aaa" style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)' }} />
+                    <input
+                      value={userSearch}
+                      onChange={e => { setUserSearch(e.target.value); setUsers(readUsers()) }}
+                      placeholder="جستجو نام، ایمیل، موبایل..."
+                      style={{ border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, padding:'7px 32px 7px 12px', fontSize:12, fontFamily:'Vazirmatn', outline:'none', width:220, background:'rgba(255,255,255,0.06)', color:'#1a1a1a' }}
+                    />
+                  </div>
+                </div>
+                {filteredUsers.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:40, color:'#aaa' }}>
+                    <Users size={36} color="#ddd" style={{ margin:'0 auto 12px' }} />
+                    <p style={{ fontSize:14 }}>{users.length === 0 ? 'هنوز کاربری ثبت‌نام نکرده' : 'نتیجه‌ای یافت نشد'}</p>
+                  </div>
+                ) : (
+                  <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                    <thead>
+                      <tr style={{ background:'#f8f9fb' }}>
+                        {['#','نام','ایمیل','موبایل','اشتراک','تاریخ ثبت‌نام',''].map((h,i) => (
+                          <th key={i} style={{ padding:'12px 16px', fontSize:12, color:'#888', fontWeight:600, textAlign:'right', fontFamily:'Vazirmatn', borderBottom:'1px solid #eef0f3' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u, i) => (
+                        <tr key={u.id} style={{ borderTop:'1px solid #f5f7fa' }}
+                            onMouseEnter={e=>e.currentTarget.style.background='#fafbfc'}
+                            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                          <td style={{ padding:'12px 16px' }}>
+                            <div style={{ width:38, height:38, borderRadius:'50%', background:'linear-gradient(135deg,#3498DB,#1a5a8a)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                              <span style={{ fontSize:14, fontWeight:700, color:'#fff' }}>{(u.name||'؟')[0]}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding:'12px 16px', fontSize:13, fontWeight:600, color:'#1a1a1a' }}>{u.name || '—'}</td>
+                          <td style={{ padding:'12px 16px' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#666' }}>
+                              <Mail size={12} color="#aaa" />
+                              {u.email || '—'}
+                            </div>
+                          </td>
+                          <td style={{ padding:'12px 16px' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#666' }}>
+                              <Phone size={12} color="#aaa" />
+                              {u.phone || '—'}
+                            </div>
+                          </td>
+                          <td style={{ padding:'12px 16px', position:'relative' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <button
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setMembershipMenuPos({ top: rect.bottom + 6, left: rect.left })
+                                  setMembershipMenu(membershipMenu === u.id ? null : u.id)
+                                }}
+                                style={{
+                                  display:'flex', alignItems:'center', gap:5,
+                                  padding:'4px 10px', borderRadius:20, border:'1.5px solid',
+                                  fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn',
+                                  background: u.membership === 'طلایی' ? '#fef9e7' : '#f5f5f5',
+                                  borderColor: u.membership === 'طلایی' ? '#F59E0B' : '#e0e0e0',
+                                  color: u.membership === 'طلایی' ? '#D97706' : '#888',
+                                }}>
+                                {u.membership === 'طلایی' && <Crown size={11} />}
+                                {u.membership || 'رایگان'}
+                                <ChevronDown size={11} />
+                              </button>
+                            </div>
+                          </td>
+                          <td style={{ padding:'12px 16px' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#aaa' }}>
+                              <Calendar size={12} />
+                              {u.createdAt ? new Date(u.createdAt).toLocaleDateString('fa-IR') : '—'}
+                            </div>
+                          </td>
+                          <td style={{ padding:'12px 16px' }}>
+                            <button
+                              onClick={() => handleDeleteUser(u.id)}
+                              title="حذف کاربر"
+                              style={{ width:30, height:30, borderRadius:8, background:'#fef2f2', border:'1px solid #fecaca', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+                              <Trash2 size={13} color="#E74C3C" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Membership dropdown portal — خارج از table تا overflow clip نشه */}
+              {membershipMenu !== null && (() => {
+                const menuUser = filteredUsers.find(u => u.id === membershipMenu)
+                if (!menuUser) return null
+                return (
+                  <>
+                    {/* overlay شفاف برای بستن */}
+                    <div style={{ position:'fixed', inset:0, zIndex:999 }} onClick={() => setMembershipMenu(null)} />
+                    <div style={{
+                      position:'fixed',
+                      top: membershipMenuPos.top,
+                      left: membershipMenuPos.left,
+                      zIndex:1000,
+                      background:'#fff',
+                      borderRadius:12,
+                      boxShadow:'0 4px 24px rgba(0,0,0,0.18)',
+                      border:'1px solid #eee',
+                      minWidth:140,
+                      overflow:'hidden',
+                    }}>
+                      <div style={{ padding:'8px 14px 6px', fontSize:11, color:'#aaa', borderBottom:'1px solid #f5f5f5' }}>
+                        نوع اشتراک: {menuUser.name}
                       </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                          <span style={{ fontSize:14, fontWeight:600, color:'#1a1a1a' }}>{r.user}</span>
-                          <div style={{ display:'flex', gap:2 }}>
-                            {[1,2,3,4,5].map(n=><Star key={n} size={14} color="#F39C12" fill={n<=r.rating?'#F39C12':'none'} />)}
+                      {['رایگان','طلایی'].map(m => (
+                        <button key={m} onClick={() => handleMembershipChange(menuUser.id, m)}
+                          style={{
+                            display:'flex', alignItems:'center', gap:8,
+                            width:'100%', padding:'10px 14px', textAlign:'right',
+                            fontSize:13, fontFamily:'Vazirmatn', border:'none', cursor:'pointer',
+                            background: menuUser.membership === m ? (m==='طلایی'?'#fef9e7':'#f5f7fa') : 'transparent',
+                            color: m==='طلایی' ? '#D97706' : '#333',
+                            fontWeight: menuUser.membership === m ? 700 : 400,
+                            transition:'background 0.1s',
+                          }}>
+                          {m === 'طلایی'
+                            ? <Crown size={14} color="#F59E0B" />
+                            : <div style={{ width:14, height:14, borderRadius:'50%', background:'#e0e0e0' }} />
+                          }
+                          {m}
+                          {menuUser.membership === m && <span style={{ marginRight:'auto', color:'#27AE60', fontSize:12 }}>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
+
+              {/* Reviews */}
+              <div style={{ background:'#fff', borderRadius:16, border:'1px solid #eef0f3', overflow:'hidden' }}>
+                <div style={{ padding:'18px 22px', borderBottom:'1px solid #f5f7fa', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontSize:15, fontWeight:700, color:'#1a1a1a' }}>نظرات کاربران</span>
+                  <span style={{ fontSize:12, color:'rgba(255,255,255,0.35)' }}>{allReviews.length} نظر</span>
+                </div>
+                <div style={{ padding:22 }}>
+                  {allReviews.length === 0
+                    ? <p style={{ color:'#aaa', fontSize:14, textAlign:'center', padding:'40px 0' }}>هنوز هیچ نظری ثبت نشده</p>
+                    : allReviews.map((r, i) => (
+                      <div key={i} style={{ display:'flex', gap:16, paddingBottom:18, marginBottom:18, borderBottom:'1px solid #f5f7fa' }}>
+                        <div style={{ width:44, height:44, borderRadius:'50%', background:'#EBF5FB', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                          <Users size={18} color="#3498DB" />
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                            <span style={{ fontSize:14, fontWeight:600, color:'#1a1a1a' }}>{r.user}</span>
+                            <div style={{ display:'flex', gap:2 }}>
+                              {[1,2,3,4,5].map(n=><Star key={n} size={14} color="#F39C12" fill={n<=r.rating?'#F39C12':'none'} />)}
+                            </div>
+                          </div>
+                          <p style={{ fontSize:13, color:'#555', marginBottom:6, lineHeight:1.6 }}>{r.text}</p>
+                          <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                            <MapPin size={12} color="#2ECC71" />
+                            <span style={{ fontSize:12, color:'rgba(255,255,255,0.35)' }}>{r.stationName}</span>
                           </div>
                         </div>
-                        <p style={{ fontSize:13, color:'#555', marginBottom:6, lineHeight:1.6 }}>{r.text}</p>
-                        <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-                          <MapPin size={12} color="#2ECC71" />
-                          <span style={{ fontSize:12, color:'#aaa' }}>{r.stationName}</span>
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            </>
+          })()}
+
+          {/* ── NEWS ── */}
+          {active === 'news' && (() => {
+            const NEWS_CATS = ['ایستگاه','شرکت','تخفیف','رویداد','سایر']
+            return <>
+              {/* Header */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+                <div>
+                  <div style={{ fontSize:20, fontWeight:700, color:'rgba(255,255,255,0.95)', marginBottom:4 }}>مدیریت اخبار</div>
+                  <div style={{ fontSize:13, color:'#888' }}>اخبار ایستگاه‌ها و شرکت ولت‌مپ را اینجا منتشر کنید</div>
+                </div>
+                <button onClick={() => { setNewsAddMode(true); setNewsEditId(null); setNewsForm({ title:'', body:'', category:'ایستگاه', pinned:false, image:null }) }}
+                  style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 20px', background:'#2ECC71', color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Vazirmatn' }}>
+                  <Plus size={16} /> خبر جدید
+                </button>
+              </div>
+
+              {/* فرم افزودن/ویرایش */}
+              {newsAddMode && (
+                <div style={{ background:'#fff', borderRadius:16, border:'1px solid #eef0f3', padding:24, marginBottom:24 }}>
+                  <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:16 }}>
+                    {newsEditId ? 'ویرایش خبر' : 'افزودن خبر جدید'}
+                  </div>
+
+                  {/* آپلود عکس */}
+                  <div onClick={() => newsImgRef.current?.click()} style={{ border:'2px dashed #e0e0e0', borderRadius:12, height:140, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', marginBottom:16, overflow:'hidden', position:'relative', background:'#fafafa' }}>
+                    {newsForm.image ? (
+                      <>
+                        <img src={newsForm.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        <button onClick={e => { e.stopPropagation(); setNewsForm(f=>({...f,image:null})) }} style={{ position:'absolute', top:8, left:8, width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,0.5)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <X size={14} color="#fff" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={24} color="#ccc" />
+                        <span style={{ fontSize:12, color:'#aaa', marginTop:8 }}>کلیک کنید یا عکس را بکشید اینجا</span>
+                      </>
+                    )}
+                    <input ref={newsImgRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleNewsImage} />
+                  </div>
+
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+                    <div>
+                      <label style={{ fontSize:12, color:'#888', display:'block', marginBottom:6 }}>عنوان خبر *</label>
+                      <input value={newsForm.title} onChange={e=>setNewsForm(f=>({...f,title:e.target.value}))}
+                        placeholder="عنوان را وارد کنید"
+                        style={{ width:'100%', border:'1px solid #e8eaed', borderRadius:10, padding:'9px 12px', fontSize:13, fontFamily:'Vazirmatn', outline:'none', boxSizing:'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize:12, color:'#888', display:'block', marginBottom:6 }}>دسته‌بندی</label>
+                      <select value={newsForm.category} onChange={e=>setNewsForm(f=>({...f,category:e.target.value}))}
+                        style={{ width:'100%', border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, padding:'9px 12px', fontSize:13, fontFamily:'Vazirmatn', outline:'none', background:'rgba(255,255,255,0.06)', color:'#1a1a1a' }}>
+                        {NEWS_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom:12 }}>
+                    <label style={{ fontSize:12, color:'#888', display:'block', marginBottom:6 }}>متن خبر *</label>
+                    <textarea value={newsForm.body} onChange={e=>setNewsForm(f=>({...f,body:e.target.value}))}
+                      rows={4} placeholder="متن کامل خبر را بنویسید..."
+                      style={{ width:'100%', border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, padding:'9px 12px', fontSize:13, fontFamily:'Vazirmatn', outline:'none', resize:'vertical', boxSizing:'border-box', background:'rgba(255,255,255,0.06)', color:'#1a1a1a' }} />
+                  </div>
+
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', marginBottom:16 }}>
+                    <input type="checkbox" checked={newsForm.pinned} onChange={e=>setNewsForm(f=>({...f,pinned:e.target.checked}))} />
+                    <span style={{ fontSize:13, color:'#555' }}>سنجاق کردن (نمایش در بالای لیست)</span>
+                  </label>
+
+                  <div style={{ display:'flex', gap:10 }}>
+                    <button onClick={handleNewsSave} disabled={newsSaving || !newsForm.title || !newsForm.body}
+                      style={{ flex:1, padding:'10px 0', background:'#2ECC71', color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Vazirmatn', opacity:newsSaving?0.7:1 }}>
+                      {newsSaving ? 'در حال ذخیره...' : newsEditId ? 'ذخیره تغییرات' : 'انتشار خبر'}
+                    </button>
+                    <button onClick={() => { setNewsAddMode(false); setNewsEditId(null) }}
+                      style={{ padding:'10px 20px', background:'#f5f5f5', color:'#555', border:'none', borderRadius:10, fontSize:13, cursor:'pointer', fontFamily:'Vazirmatn' }}>
+                      انصراف
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* لیست اخبار */}
+              {newsLoading ? (
+                <div style={{ textAlign:'center', padding:40, color:'#aaa' }}>در حال بارگذاری...</div>
+              ) : newsList.length === 0 ? (
+                <div style={{ textAlign:'center', padding:60, background:'#fff', borderRadius:16, border:'1px solid #eef0f3' }}>
+                  <Newspaper size={40} color="#ddd" style={{ margin:'0 auto 12px' }} />
+                  <p style={{ color:'#aaa', fontSize:14 }}>هنوز خبری منتشر نشده</p>
+                </div>
+              ) : (
+                <div style={{ display:'grid', gap:16 }}>
+                  {newsList.map(item => (
+                    <div key={item.id} style={{ background:'#fff', borderRadius:16, border:'1px solid #eef0f3', overflow:'hidden', display:'flex', gap:0 }}>
+                      {item.image && (
+                        <div style={{ width:140, flexShrink:0, overflow:'hidden' }}>
+                          <img src={item.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        </div>
+                      )}
+                      <div style={{ flex:1, padding:'16px 20px' }}>
+                        <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:8 }}>
+                          {item.pinned && <Pin size={14} color="#2ECC71" style={{ flexShrink:0, marginTop:2 }} />}
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:4 }}>{item.title}</div>
+                            <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                              <span style={{ fontSize:11, background:'#f0faf5', color:'#27AE60', padding:'2px 10px', borderRadius:20 }}>{item.category}</span>
+                              <span style={{ fontSize:11, color:'#aaa' }}>{new Date(item.publishedAt).toLocaleDateString('fa-IR')}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <p style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:12, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{item.body}</p>
+                        <div style={{ display:'flex', gap:8 }}>
+                          <button onClick={() => handleNewsEdit(item)} style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', background:'#f5f7fa', color:'#555', border:'none', borderRadius:8, fontSize:12, cursor:'pointer', fontFamily:'Vazirmatn' }}>
+                            <Pencil size={13} /> ویرایش
+                          </button>
+                          <button onClick={() => handleNewsTogglePin(item)} style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', background:item.pinned?'#f0faf5':'#f5f7fa', color:item.pinned?'#27AE60':'#555', border:'none', borderRadius:8, fontSize:12, cursor:'pointer', fontFamily:'Vazirmatn' }}>
+                            {item.pinned ? <><PinOff size={13} /> رفع سنجاق</> : <><Pin size={13} /> سنجاق</>}
+                          </button>
+                          <button onClick={() => handleNewsDelete(item.id)} style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', background:'#fef2f2', color:'#e74c3c', border:'none', borderRadius:8, fontSize:12, cursor:'pointer', fontFamily:'Vazirmatn', marginRight:'auto' }}>
+                            <Trash2 size={13} /> حذف
+                          </button>
                         </div>
                       </div>
                     </div>
-                  ))
-                }
+                  ))}
+                </div>
+              )}
+            </>
+          })()}
+
+          {/* ── STATION REPORTS ── */}
+          {active === 'stationreports' && (() => {
+            const pending  = stationReports.filter(r => r.status === 'pending')
+            const approved = stationReports.filter(r => r.status === 'approved')
+            const rejected = stationReports.filter(r => r.status === 'rejected')
+            const STATUS_BADGE = {
+              pending:  { bg:'#fef9e7', color:'#D97706', label:'در انتظار بررسی' },
+              approved: { bg:'#e8faf0', color:'#27AE60', label:'تأیید شده' },
+              rejected: { bg:'#fef2f2', color:'#E74C3C', label:'رد شده' },
+            }
+            return <>
+              {/* آمار */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:24 }}>
+                <StatCard label="در انتظار بررسی" value={pending.length} sub="گزارش جدید" subUp Icon={ClipboardList} color="#D97706" bg="#fef9e7" />
+                <StatCard label="تأیید شده" value={approved.length} sub="اضافه به لیست" subUp Icon={CheckCircle} color="#27AE60" bg="#e8faf0" />
+                <StatCard label="رد شده" value={rejected.length} sub="گزارش" subUp={false} Icon={X} color="#E74C3C" bg="#fef2f2" />
               </div>
-            </div>
-          </>}
+
+              {srLoading && (
+                <div style={{ textAlign:'center', padding:40, color:'#888' }}>در حال بارگذاری...</div>
+              )}
+
+              {/* modal رد کردن */}
+              {rejectModal && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+                  <div style={{ background:'#1a2035', borderRadius:16, padding:24, width:'100%', maxWidth:400, border:'1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:'#fff', marginBottom:12 }}>دلیل رد گزارش</div>
+                    <textarea value={rejectReason} onChange={e=>setRejectReason(e.target.value)}
+                      placeholder="دلیل رد شدن را بنویسید (اختیاری)..."
+                      rows={3} style={{ width:'100%', borderRadius:10, border:'1px solid rgba(255,255,255,0.12)', background:'rgba(255,255,255,0.06)', color:'#fff', padding:'10px 12px', fontSize:13, fontFamily:'Vazirmatn', outline:'none', resize:'none', boxSizing:'border-box' }} />
+                    <div style={{ display:'flex', gap:10, marginTop:16 }}>
+                      <button onClick={handleRejectReport} style={{ flex:1, padding:'10px', background:'#E74C3C', color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn' }}>رد کردن</button>
+                      <button onClick={() => { setRejectModal(null); setRejectReason('') }} style={{ flex:1, padding:'10px', background:'rgba(255,255,255,0.08)', color:'#fff', border:'none', borderRadius:10, fontSize:13, cursor:'pointer', fontFamily:'Vazirmatn' }}>انصراف</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* لیست گزارش‌ها */}
+              {!srLoading && stationReports.length === 0 && (
+                <div style={{ textAlign:'center', padding:60, background:'#f5f7fa', borderRadius:16, border:'1px solid rgba(255,255,255,0.06)' }}>
+                  <ClipboardList size={40} color="rgba(255,255,255,0.15)" style={{ margin:'0 auto 12px' }} />
+                  <p style={{ color:'#aaa', fontSize:14 }}>هنوز گزارشی ثبت نشده</p>
+                </div>
+              )}
+
+              {!srLoading && stationReports.length > 0 && (
+                <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+                  {stationReports.map(report => {
+                    const badge = STATUS_BADGE[report.status] || STATUS_BADGE.pending
+                    return (
+                      <div key={report.id} style={{ background:'#f8f9fb', borderRadius:16, border:'1px solid #eef0f3', overflow:'hidden' }}>
+                        {/* هدر کارت */}
+                        <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 18px', borderBottom:'1px solid #f5f7fa' }}>
+                          {report.image && (
+                            <img src={report.image} alt="" style={{ width:52, height:52, borderRadius:10, objectFit:'cover', flexShrink:0 }} />
+                          )}
+                          <div style={{ flex:1 }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                              <span style={{ fontSize:15, fontWeight:700, color:'#1a1a1a' }}>{report.name}</span>
+                              {report.isHome && (
+                                <span style={{ fontSize:10, background:'rgba(52,152,219,0.2)', color:'#3498DB', padding:'2px 8px', borderRadius:20, border:'1px solid rgba(52,152,219,0.3)' }}>خانگی</span>
+                              )}
+                              <span style={{ fontSize:11, padding:'2px 10px', borderRadius:20, fontWeight:600, background:badge.bg, color:badge.color, marginRight:'auto' }}>{badge.label}</span>
+                            </div>
+                            <div style={{ fontSize:12, color:'#888' }}>
+                              {report.city} · گزارش از: {report.reporterName || '—'} · {new Date(report.createdAt).toLocaleDateString('fa-IR')}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* جزئیات */}
+                        <div style={{ padding:'14px 18px' }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:12 }}>
+                            {[
+                              { label:'نوع', value: report.type },
+                              { label:'کانکتور', value: report.connector },
+                              { label:'توان', value: `${report.power || '—'}kW` },
+                              { label:'پورت', value: report.ports || '—' },
+                            ].map(item => (
+                              <div key={item.label} style={{ background:'#f8f9fb', borderRadius:8, padding:'8px 6px', textAlign:'center' }}>
+                                <div style={{ fontSize:10, color:'#aaa', marginBottom:3 }}>{item.label}</div>
+                                <div style={{ fontSize:12, fontWeight:600, color:'rgba(255,255,255,0.8)' }}>{item.value}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ fontSize:12, color:'rgba(255,255,255,0.5)', marginBottom:6 }}>
+                            <MapPin size={12} style={{ display:'inline', marginLeft:4 }} />
+                            {report.address}
+                          </div>
+
+                          {report.lat && report.lng && (
+                            <div style={{ fontSize:11, color:'#aaa', marginBottom:6, direction:'ltr' }}>
+                              📍 {report.lat}, {report.lng}
+                            </div>
+                          )}
+
+                          {report.ownerNote && (
+                            <div style={{ fontSize:12, color:'rgba(255,255,255,0.5)', background:'#f8f9fb', borderRadius:8, padding:'8px 10px', marginBottom:10 }}>
+                              💬 {report.ownerNote}
+                            </div>
+                          )}
+
+                          {/* دکمه‌های عملیات */}
+                          {report.status === 'pending' && (
+                            <div style={{ display:'flex', gap:8, marginTop:12 }}>
+                              <button onClick={() => handleApproveReport(report)}
+                                style={{ flex:1, padding:'10px', background:'rgba(46,204,113,0.2)', color:'#2ECC71', border:'1.5px solid rgba(46,204,113,0.4)', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                <ThumbsUp size={15} /> تأیید و اضافه کردن
+                              </button>
+                              <button onClick={() => setRejectModal(report.id)}
+                                style={{ flex:1, padding:'10px', background:'rgba(231,76,60,0.15)', color:'#E74C3C', border:'1.5px solid rgba(231,76,60,0.3)', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                <ThumbsDown size={15} /> رد کردن
+                              </button>
+                            </div>
+                          )}
+
+                          {report.status === 'approved' && (
+                            <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8, color:'#2ECC71', fontSize:12 }}>
+                              <CheckCircle size={14} /> ایستگاه تأیید و اضافه شده
+                            </div>
+                          )}
+
+                          {report.status === 'rejected' && (
+                            <div style={{ marginTop:8, color:'#E74C3C', fontSize:12 }}>
+                              <X size={14} style={{ display:'inline', marginLeft:4 }} />
+                              رد شده
+                              {report.rejectReason && <span style={{ color:'#888', marginRight:6 }}>· {report.rejectReason}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          })()}
 
           {/* ── REPORTS ── */}
           {active === 'reports' && <>
@@ -648,7 +1325,7 @@ export default function Admin({ stations, setStations }) {
           {(active==='chargers'||active==='settings') && (
             <div style={{ background:'#fff', borderRadius:16, padding:60, textAlign:'center', border:'1px solid #eef0f3' }}>
               <Settings size={52} color="#ddd" style={{ margin:'0 auto 18px' }} />
-              <h2 style={{ fontSize:20, fontWeight:700, color:'#1a1a1a', marginBottom:10 }}>به زودی اضافه می‌شود</h2>
+              <h2 style={{ fontSize:20, fontWeight:700, color:'rgba(255,255,255,0.95)', marginBottom:10 }}>به زودی اضافه می‌شود</h2>
               <p style={{ fontSize:14, color:'#aaa' }}>این بخش در حال توسعه است</p>
             </div>
           )}

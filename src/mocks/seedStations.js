@@ -105,7 +105,7 @@ export const SEED_STATIONS = [
     lat: 36.2972,
     lng: 59.6067,
     type: 'DC',
-    connector: 'CHAdeMO',
+    connector: 'GB/T',
     power: 50,
     ports: 2,
     status: 'busy',
