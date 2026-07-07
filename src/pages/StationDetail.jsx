@@ -1,37 +1,54 @@
-import React, { useState } from 'react'
+// TODO: وقتی به دیتابیس وصل شد، همه importها از api باید endpoint‌های واقعی رو call کنن
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowRight, MapPin, Zap, Clock, DollarSign, Star, Navigation, RefreshCw } from 'lucide-react'
-import { addStationReview, updateStationStatus } from '../api'
+import { ArrowRight, MapPin, Zap, Clock, DollarSign, Star, Navigation, RefreshCw, Heart, Loader2, Users, CheckCircle, XCircle } from 'lucide-react'
+import { addStationReview, addFavoriteStation, removeFavoriteStation, isFavoriteStation, submitCrowdReport, getCrowdStats } from '../api'
 
 const STATUSES = [
   { value:'available', label:'خلوت', color:'#27AE60', bg:'#e8faf0' },
-  { value:'busy', label:'شلوغ', color:'#E67E22', bg:'#fef3e2' },
-  { value:'waiting', label:'در انتظار', color:'#3498DB', bg:'#EBF5FB' },
-  { value:'offline', label:'خاموش', color:'#95a5a6', bg:'#f0f0f0' },
+  { value:'busy',      label:'شلوغ', color:'#E67E22', bg:'#fef3e2' },
+  { value:'waiting',   label:'در انتظار', color:'#3498DB', bg:'#EBF5FB' },
+  { value:'offline',   label:'خاموش', color:'#95a5a6', bg:'#f0f0f0' },
 ]
 
 export default function StationDetail({ stations, setStations }) {
   const { id } = useParams()
   const navigate = useNavigate()
+
+  // TODO: وقتی به دیتابیس وصل شد، ایستگاه رو از API بگیر: GET /stations/:id
   const station = stations.find(s => s.id === Number(id))
-  const [reviewText, setReviewText] = useState('')
+
+  const [reviewText,   setReviewText]   = useState('')
   const [reviewRating, setReviewRating] = useState(5)
-  const [reviewName, setReviewName] = useState('')
-  const [showForm, setShowForm] = useState(false)
+  const [reviewName,   setReviewName]   = useState('')
+  const [showForm,     setShowForm]     = useState(false)
+  const [isFav,        setIsFav]        = useState(false)
+  const [favLoading,   setFavLoading]   = useState(false)
+
+  // ─── حضور کاربر ─────────────────────────────────────────────────────────
+  // مراحل: idle → confirm → reporting → done
+  const [crowdStep,    setCrowdStep]    = useState('idle')
+  const [crowdLoading, setCrowdLoading] = useState(false)
+  const [crowdStats,   setCrowdStats]   = useState(null)  // آمار گزارش‌ها برای نمایش
+
+  useEffect(() => {
+    if (!station) return
+    // TODO: GET /stations/:id/favorites (بررسی علاقه‌مندی کاربر)
+    setIsFav(isFavoriteStation(station.id))
+    // TODO: GET /stations/:id/crowd-reports (دریافت آمار گزارش‌ها)
+    setCrowdStats(getCrowdStats(station.id))
+  }, [station])
 
   if (!station) return (
-    <div className="flex items-center justify-center h-screen">
+    <div className="flex items-center justify-center h-screen dark:bg-gray-900">
       <p style={{ color:'#888' }}>ایستگاه یافت نشد</p>
     </div>
   )
 
   const currentStatus = STATUSES.find(s => s.value === station.status) || STATUSES[0]
 
-  const handleStatus = async (val) => {
-    const updated = await updateStationStatus(station.id, val)
-    setStations(updated)
-  }
-
+  // ─── ثبت نظر ─────────────────────────────────────────────────────────────
+  // TODO: POST /stations/:id/reviews
   const handleAddReview = async () => {
     if (!reviewText.trim()) return
     const updated = await addStationReview(station.id, {
@@ -43,9 +60,40 @@ export default function StationDetail({ stations, setStations }) {
     setReviewText(''); setReviewName(''); setReviewRating(5); setShowForm(false)
   }
 
+  // ─── علاقه‌مندی ──────────────────────────────────────────────────────────
+  // TODO: POST/DELETE /profile/favorites/:id
+  const handleToggleFavorite = async () => {
+    setFavLoading(true)
+    try {
+      if (isFav) { await removeFavoriteStation(station.id); setIsFav(false) }
+      else       { await addFavoriteStation(station.id);    setIsFav(true)  }
+    } finally { setFavLoading(false) }
+  }
+
+  // ─── گزارش حضور کاربر ────────────────────────────────────────────────────
+  // TODO: POST /stations/:id/crowd-report با { type: 'busy'|'available' }
+  // الگوریتم: سرور میانگین گزارش‌های ۳۰ دقیقه اخیر رو حساب می‌کنه
+  //          اگه ≥ ۲ گزارش باشه و اکثریت (>۵۰٪) شلوغ بگن → وضعیت busy میشه
+  const handleCrowdReport = async (type) => {
+    setCrowdLoading(true)
+    try {
+      const result = await submitCrowdReport(station.id, type)
+      // آپدیت آمار محلی
+      const newStats = getCrowdStats(station.id)
+      setCrowdStats(newStats)
+      // اگه الگوریتم وضعیت رو آپدیت کرد، لیست ایستگاه‌ها رو refresh کن
+      if (result?.updated && result?.status) {
+        setStations(prev => prev.map(s =>
+          s.id === station.id ? { ...s, status: result.status } : s
+        ))
+      }
+      setCrowdStep('done')
+    } finally { setCrowdLoading(false) }
+  }
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50" style={{ paddingBottom:80 }}>
-      {/* Hero image */}
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900" style={{ paddingBottom:80 }}>
+      {/* Hero */}
       <div style={{ height:200, background:'#e0f2e0', position:'relative', overflow:'hidden' }}>
         {station.image
           ? <img src={station.image} alt={station.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
@@ -64,53 +112,46 @@ export default function StationDetail({ stations, setStations }) {
 
       <div className="px-4 pt-4 flex flex-col gap-3">
         {/* Main info */}
-        <div className="bg-white rounded-2xl p-4 border border-gray-100">
-          <h1 style={{ fontSize:18, fontWeight:700, color:'#1a1a1a', marginBottom:6 }}>{station.name}</h1>
-          <p style={{ fontSize:13, color:'#888', marginBottom:12, display:'flex', alignItems:'center', gap:4 }}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+          <h1 style={{ fontSize:18, fontWeight:700, marginBottom:6 }} className="text-gray-900 dark:text-white">{station.name}</h1>
+          <p style={{ fontSize:13, marginBottom:12, display:'flex', alignItems:'center', gap:4 }} className="text-gray-500 dark:text-gray-400">
             <MapPin size={13} color="#2ECC71" /> {station.address}
           </p>
-
-          {/* Status selector */}
-          <div className="mb-4">
-            <p style={{ fontSize:12, color:'#aaa', marginBottom:8 }}>وضعیت ایستگاه:</p>
-            <div className="flex gap-2 flex-wrap">
-              {STATUSES.map(s => (
-                <button key={s.value} onClick={() => handleStatus(s.value)}
-                  style={{ fontSize:12, padding:'5px 14px', borderRadius:20, border:`1.5px solid ${station.status===s.value ? s.color : '#e0e0e0'}`, background: station.status===s.value ? s.bg : '#fff', color: station.status===s.value ? s.color : '#888', fontFamily:'Vazirmatn', cursor:'pointer', fontWeight: station.status===s.value ? 600 : 400 }}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Stats grid */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[
-              { label:'نوع', value:station.type, Icon:Zap },
-              { label:'توان', value:`${station.power} kW`, Icon:Zap },
-              { label:'پورت‌ها', value:`${station.ports} عدد`, Icon:RefreshCw },
-              { label:'کانکتور', value:station.connector, Icon:RefreshCw },
-              { label:'ساعات', value:station.hours||'۲۴ ساعته', Icon:Clock },
-              { label:'قیمت', value:station.price||'—', Icon:DollarSign },
+              { label:'نوع', value:station.type },
+              { label:'توان', value:`${station.power} kW` },
+              { label:'پورت‌ها', value:`${station.ports} عدد` },
+              { label:'کانکتور', value:station.connector },
+              { label:'ساعات', value:station.hours||'۲۴ ساعته' },
+              { label:'قیمت', value:station.price||'—' },
             ].map(item => (
-              <div key={item.label} className="bg-gray-50 rounded-xl p-3 text-center">
-                <p style={{ fontSize:11, color:'#aaa', marginBottom:2 }}>{item.label}</p>
-                <p style={{ fontSize:12, fontWeight:600, color:'#1a1a1a' }}>{item.value}</p>
+              <div key={item.label} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 text-center">
+                <p style={{ fontSize:11, marginBottom:2 }} className="text-gray-400 dark:text-gray-500">{item.label}</p>
+                <p style={{ fontSize:12, fontWeight:600 }} className="text-gray-900 dark:text-white">{item.value}</p>
               </div>
             ))}
           </div>
 
           <div className="flex items-center gap-2 mb-4">
             <Star size={20} color="#F39C12" fill="#F39C12" />
-            <span style={{ fontSize:20, fontWeight:700, color:'#1a1a1a' }}>{station.rating || '—'}</span>
-            <span style={{ fontSize:13, color:'#aaa' }}>({station.reviews.length} نظر)</span>
+            <span style={{ fontSize:20, fontWeight:700 }} className="text-gray-900 dark:text-white">{station.rating || '—'}</span>
+            <span style={{ fontSize:13 }} className="text-gray-400">({station.reviews.length} نظر)</span>
           </div>
 
+          {/* دکمه‌های اصلی */}
           <div className="flex gap-2">
             <button onClick={() => window.open(`https://maps.google.com/?q=${station.lat},${station.lng}`)}
               className="flex-1 py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
               style={{ background:'#2ECC71', fontFamily:'Vazirmatn' }}>
               <Navigation size={16} /> مسیریابی
+            </button>
+            <button onClick={handleToggleFavorite} disabled={favLoading}
+              className="py-3 px-4 rounded-xl text-sm font-semibold border flex items-center justify-center transition-colors"
+              style={{ borderColor:isFav?'#e74c3c':'#e0e0e0', background:isFav?'#fef2f2':'#fff', color:isFav?'#e74c3c':'#888', minWidth:52 }}>
+              {favLoading ? <Loader2 size={16} className="animate-spin" /> : <Heart size={16} fill={isFav?'#e74c3c':'none'} />}
             </button>
             <button onClick={() => setShowForm(f=>!f)}
               className="flex-1 py-3 rounded-xl text-sm font-semibold border flex items-center justify-center gap-2"
@@ -120,17 +161,111 @@ export default function StationDetail({ stations, setStations }) {
           </div>
         </div>
 
-        {/* Reviews */}
-        <div className="bg-white rounded-2xl p-4 border border-gray-100">
+        {/* ─── بخش گزارش حضور کاربر ──────────────────────────────────────── */}
+        {/* TODO: این بخش بعد از وصل شدن به دیتابیس باید از API وضعیت رو بگیره */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-2 mb-3">
+            <Users size={16} className="text-emerald-500" />
+            <span style={{ fontSize:14, fontWeight:700 }} className="text-gray-900 dark:text-white">وضعیت فعلی ایستگاه</span>
+            {crowdStats && crowdStats.recent >= 2 && (
+              <span style={{ fontSize:11, background:'#e8faf0', color:'#27AE60', padding:'2px 8px', borderRadius:20, marginRight:'auto' }}>
+                بر اساس {crowdStats.recent} گزارش کاربری
+              </span>
+            )}
+          </div>
+
+          {/* آمار گزارش‌های اخیر */}
+          {crowdStats && crowdStats.recent > 0 && (
+            <div className="flex gap-2 mb-3">
+              <div className="flex-1 rounded-xl p-2.5 text-center" style={{ background:'#e8faf0' }}>
+                <div style={{ fontSize:18, fontWeight:700, color:'#27AE60' }}>{crowdStats.availableCount}</div>
+                <div style={{ fontSize:11, color:'#27AE60' }}>گزارش خلوت</div>
+              </div>
+              <div className="flex-1 rounded-xl p-2.5 text-center" style={{ background:'#fef3e2' }}>
+                <div style={{ fontSize:18, fontWeight:700, color:'#E67E22' }}>{crowdStats.busyCount}</div>
+                <div style={{ fontSize:11, color:'#E67E22' }}>گزارش شلوغ</div>
+              </div>
+            </div>
+          )}
+
+          {crowdStep === 'idle' && (
+            <button
+              onClick={() => setCrowdStep('confirm')}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border dark:border-gray-600"
+              style={{ background:'#f8f9fb', color:'#555', fontFamily:'Vazirmatn' }}>
+              <CheckCircle size={15} className="text-emerald-500" />
+              آیا در این ایستگاه حضور دارید؟
+            </button>
+          )}
+
+          {crowdStep === 'confirm' && (
+            <div>
+              <p style={{ fontSize:13, marginBottom:10, textAlign:'center' }} className="text-gray-600 dark:text-gray-300">
+                وضعیت ایستگاه را انتخاب کنید:
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCrowdReport('available')}
+                  disabled={crowdLoading}
+                  className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-opacity"
+                  style={{ background:'#e8faf0', color:'#27AE60', border:'1.5px solid #27AE60', fontFamily:'Vazirmatn', opacity:crowdLoading?0.6:1 }}>
+                  {crowdLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
+                  خلوته
+                </button>
+                <button
+                  onClick={() => handleCrowdReport('busy')}
+                  disabled={crowdLoading}
+                  className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-opacity"
+                  style={{ background:'#fef3e2', color:'#E67E22', border:'1.5px solid #E67E22', fontFamily:'Vazirmatn', opacity:crowdLoading?0.6:1 }}>
+                  {crowdLoading ? <Loader2 size={15} className="animate-spin" /> : <XCircle size={15} />}
+                  شلوغه
+                </button>
+              </div>
+              <button onClick={() => setCrowdStep('idle')}
+                style={{ width:'100%', marginTop:8, fontSize:12, color:'#aaa', background:'none', border:'none', cursor:'pointer', fontFamily:'Vazirmatn' }}>
+                انصراف
+              </button>
+            </div>
+          )}
+
+          {crowdStep === 'done' && (
+            <div className="flex items-center gap-2 justify-center py-2" style={{ color:'#27AE60' }}>
+              <CheckCircle size={18} />
+              <span style={{ fontSize:13, fontWeight:600 }}>گزارش شما ثبت شد، ممنون!</span>
+            </div>
+          )}
+
+          {/* گزارش ایستگاه خاموش / خراب */}
+          {station.status === 'offline' && crowdStep === 'idle' && (
+            <div className="mt-2 rounded-xl p-3" style={{ background:'#fef2f2', border:'1px solid #fecaca' }}>
+              <p style={{ fontSize:12, color:'#E74C3C', marginBottom:8, fontWeight:600 }}>⚠️ این ایستگاه خاموش اعلام شده</p>
+              <div className="flex gap-2">
+                <button onClick={() => handleCrowdReport('available')} disabled={crowdLoading}
+                  style={{ flex:1, padding:'7px', borderRadius:10, fontSize:12, fontWeight:600, border:'1.5px solid #27AE60', background:'#e8faf0', color:'#27AE60', cursor:'pointer', fontFamily:'Vazirmatn' }}>
+                  ✓ روشن است
+                </button>
+                <button onClick={() => handleCrowdReport('busy')} disabled={crowdLoading}
+                  style={{ flex:1, padding:'7px', borderRadius:10, fontSize:12, fontWeight:600, border:'1.5px solid #E74C3C', background:'#fef2f2', color:'#E74C3C', cursor:'pointer', fontFamily:'Vazirmatn' }}>
+                  ✗ هنوز خاموش
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ─── نظرات ─────────────────────────────────────────────────────── */}
+        {/* TODO: GET /stations/:id/reviews */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex justify-between items-center mb-3">
-            <span style={{ fontSize:15, fontWeight:700, color:'#1a1a1a' }}>نظرات کاربران</span>
+            <span style={{ fontSize:15, fontWeight:700 }} className="text-gray-900 dark:text-white">نظرات کاربران</span>
           </div>
           {showForm && (
             <div className="mb-4 p-3 rounded-xl" style={{ background:'#f9fdf9', border:'1px solid #d0f0e0' }}>
+              {/* TODO: فرم ثبت نظر — POST /stations/:id/reviews */}
               <input value={reviewName} onChange={e => setReviewName(e.target.value)} placeholder="نام شما (اختیاری)"
-                className="w-full rounded-xl p-2 mb-2 text-sm bg-white border border-gray-200 outline-none" style={{ fontFamily:'Vazirmatn' }} />
+                className="w-full rounded-xl p-2 mb-2 text-sm bg-white border border-gray-200 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" style={{ fontFamily:'Vazirmatn' }} />
               <textarea value={reviewText} onChange={e => setReviewText(e.target.value)} placeholder="نظر خود را بنویسید..." rows={3}
-                className="w-full rounded-xl p-2 mb-2 text-sm bg-white border border-gray-200 outline-none resize-none" style={{ fontFamily:'Vazirmatn' }} />
+                className="w-full rounded-xl p-2 mb-2 text-sm bg-white border border-gray-200 outline-none resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" style={{ fontFamily:'Vazirmatn' }} />
               <div className="flex items-center justify-between">
                 <div className="flex gap-1">
                   {[1,2,3,4,5].map(n => (
@@ -144,14 +279,14 @@ export default function StationDetail({ stations, setStations }) {
             </div>
           )}
           {station.reviews.length === 0
-            ? <p style={{ fontSize:13, color:'#aaa', textAlign:'center', padding:'12px 0' }}>هنوز نظری ثبت نشده</p>
+            ? <p style={{ fontSize:13, textAlign:'center', padding:'12px 0' }} className="text-gray-400">هنوز نظری ثبت نشده</p>
             : station.reviews.map((r,i) => (
-              <div key={i} className="mb-3 p-3 rounded-xl bg-gray-50">
+              <div key={i} className="mb-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700">
                 <div className="flex justify-between items-center mb-1">
-                  <span style={{ fontSize:13, fontWeight:600, color:'#1a1a1a' }}>{r.user}</span>
+                  <span style={{ fontSize:13, fontWeight:600 }} className="text-gray-900 dark:text-white">{r.user}</span>
                   <div className="flex gap-0.5">{[1,2,3,4,5].map(n=><Star key={n} size={12} color="#F39C12" fill={n<=r.rating?'#F39C12':'none'} />)}</div>
                 </div>
-                <p style={{ fontSize:12, color:'#666' }}>{r.text}</p>
+                <p style={{ fontSize:12 }} className="text-gray-600 dark:text-gray-300">{r.text}</p>
               </div>
             ))
           }
