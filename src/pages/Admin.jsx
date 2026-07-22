@@ -8,16 +8,15 @@ import {
   Phone, Mail, Calendar, Newspaper, Pin, PinOff, Pencil, Crown, ChevronDown,
   ClipboardList, ThumbsUp, ThumbsDown, ExternalLink, Eye
 } from 'lucide-react'
-import { createStation, deleteStation, updateStation, createNews, deleteNews, updateNews, fetchNews, getAllCrowdStats, fetchStationReports, approveStationReport, rejectStationReport, deleteStationReport } from '../api'
-import { updateUserMembership } from '../mocks/auth'
+import {
+  createStation, deleteStation, updateStation, createNews, deleteNews, updateNews, fetchNews,
+  getAllCrowdStats, fetchStationReports, approveStationReport, rejectStationReport, deleteStationReport,
+  fetchUsers, updateUserMembership, deleteUser, USE_MOCK,
+} from '../api'
+import { useAuth } from '../context/AuthContext'
 import StatusDonutChart from '../components/StatusDonutChart'
 
-function readUsers() {
-  try {
-    const raw = localStorage.getItem('voltmap_users')
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
+const MEMBERSHIP_OPTIONS = ['رایگان', 'ویژه', 'حرفه‌ای']
 
 const NAV = [
   { key:'dashboard', Icon:LayoutDashboard, label:'داشبورد' },
@@ -65,6 +64,30 @@ function StatCard({ label, value, sub, subUp, Icon, color, bg }) {
 
 export default function Admin({ stations, setStations }) {
   const navigate = useNavigate()
+  const { user, isAuthenticated, login, logout, loading: authLoading } = useAuth()
+  const [adminLogin, setAdminLogin] = useState({ identifier: 'admin@voltmap.ir', password: '' })
+  const [adminLoginError, setAdminLoginError] = useState('')
+  const [adminLoggingIn, setAdminLoggingIn] = useState(false)
+
+  const needsAdminAuth = !USE_MOCK && (!isAuthenticated || user?.role !== 'admin')
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault()
+    setAdminLoginError('')
+    setAdminLoggingIn(true)
+    try {
+      const session = await login(adminLogin)
+      if (session?.user?.role !== 'admin') {
+        await logout()
+        setAdminLoginError('این حساب دسترسی ادمین ندارد')
+      }
+    } catch (err) {
+      setAdminLoginError(err.message || 'ورود ناموفق بود')
+    } finally {
+      setAdminLoggingIn(false)
+    }
+  }
+
   const [active, setActive] = useState('dashboard')
   const [collapsed, setCollapsed] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -77,15 +100,19 @@ export default function Admin({ stations, setStations }) {
   const [membershipMenu, setMembershipMenu] = useState(null) // id کاربری که dropdown اشتراکش باز است
   const [membershipMenuPos, setMembershipMenuPos] = useState({ top: 0, left: 0 }) // موقعیت dropdown
 
-  // کاربران مستقیم از localStorage خوانده می‌شن (سینک با mocks/auth.js)
-  const [users, setUsers] = useState(() => readUsers())
+  const [users, setUsers] = useState([])
 
   // گزارش‌های وضعیت کاربری ایستگاه‌ها
-  // TODO: GET /stations/crowd-reports/summary
   const [crowdStats, setCrowdStats] = useState([])
   useEffect(() => {
-    setCrowdStats(getAllCrowdStats())
+    getAllCrowdStats().then(setCrowdStats).catch(() => setCrowdStats([]))
   }, [])
+
+  useEffect(() => {
+    if (active === 'users' || active === 'dashboard') {
+      fetchUsers().then(setUsers).catch(() => setUsers([]))
+    }
+  }, [active])
 
   // ایستگاه‌های گزارش‌شده توسط کاربران
   // TODO: GET /station-reports
@@ -102,26 +129,27 @@ export default function Admin({ stations, setStations }) {
   }, [active])
 
   const handleApproveReport = async (report) => {
-    // تأیید گزارش → ایستگاه به لیست اضافه می‌شه
-    // TODO: این باید یه transaction اتمیک در دیتابیس باشه
     await approveStationReport(report.id)
-    // اضافه کردن ایستگاه به لیست stations
-    const newStation = await createStation({
-      name:      report.name,
-      city:      report.city,
-      address:   report.address,
-      lat:       report.lat,
-      lng:       report.lng,
-      type:      report.type,
-      connector: report.connector,
-      power:     report.power || 22,
-      ports:     report.ports || 1,
-      status:    'available',
-      price:     report.price || '—',
-      hours:     report.hours || '۲۴ ساعته',
-      image:     report.image || null,
-      reviews:   [],
-    })
+    // بک‌اند فقط وضعیت گزارش را approve می‌کند؛ ایستگاه را جدا می‌سازیم
+    try {
+      const newStation = await createStation({
+        name:      report.name,
+        city:      report.city || 'نامشخص',
+        address:   report.address || 'نامشخص',
+        lat:       report.lat ?? 35.6892,
+        lng:       report.lng ?? 51.3890,
+        type:      report.type === 'DC' ? 'DC' : report.type === 'AC/DC' ? 'AC/DC' : 'AC',
+        connector: report.connector || 'Type2',
+        power:     report.power || 22,
+        ports:     report.ports || 1,
+        status:    'available',
+        price:     report.price || '—',
+        hours:     report.hours || '۲۴ ساعته',
+      })
+      setStations(prev => [newStation, ...prev])
+    } catch (err) {
+      alert(err.message || 'تأیید گزارش انجام شد ولی ساخت ایستگاه ناموفق بود')
+    }
     setStationReports(prev => prev.map(r => r.id === report.id ? { ...r, status: 'approved' } : r))
     alert(`✅ ایستگاه «${report.name}» تأیید و به لیست اضافه شد`)
   }
@@ -146,25 +174,24 @@ export default function Admin({ stations, setStations }) {
     fetchNews().then(setNewsList).finally(() => setNewsLoading(false))
   }, [])
 
-  // تغییر نوع اشتراک کاربر
-  // TODO: PATCH /admin/users/:id/membership
-  const handleMembershipChange = (userId, membership) => {
-    updateUserMembership(userId, membership)
-    setUsers(readUsers())
+  const handleMembershipChange = async (userId, membership) => {
+    try {
+      const updated = await updateUserMembership(userId, membership)
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updated, membership } : u))
+    } catch (err) {
+      alert(err.message || 'خطا در تغییر اشتراک')
+    }
     setMembershipMenu(null)
   }
 
-  // حذف کاربر
-  // TODO: DELETE /admin/users/:id
-  const handleDeleteUser = (userId) => {
+  const handleDeleteUser = async (userId) => {
     if (!window.confirm('آیا از حذف این کاربر مطمئن هستید؟')) return
     try {
-      const raw = localStorage.getItem('voltmap_users')
-      const users = raw ? JSON.parse(raw) : []
-      const updated = users.filter(u => u.id !== userId)
-      localStorage.setItem('voltmap_users', JSON.stringify(updated))
-      setUsers(updated)
-    } catch {}
+      await deleteUser(userId)
+      setUsers(prev => prev.filter(u => u.id !== userId))
+    } catch (err) {
+      alert(err.message || 'حذف کاربر ممکن نیست')
+    }
   }
 
   const handleNewsImage = (e) => {
@@ -212,18 +239,20 @@ export default function Admin({ stations, setStations }) {
 
   const handleAdd = async () => {
     if (!form.name.trim() || !form.city.trim()) return alert('نام و شهر را وارد کنید')
-    if (editStation) {
-      // TODO: PATCH /stations/:id
-      const updated = await updateStation(editStation.id, { ...form, image: imagePreview || form.image })
-      setStations(updated)
-      setEditStation(null)
-    } else {
-      // TODO: POST /stations
-      const updated = await createStation({ ...form, image: imagePreview })
-      setStations(updated)
+    try {
+      if (editStation) {
+        const updated = await updateStation(editStation.id, { ...form })
+        setStations(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s))
+        setEditStation(null)
+      } else {
+        const created = await createStation({ ...form })
+        setStations(prev => [created, ...prev])
+      }
+      setForm(EMPTY_FORM); setImagePreview('')
+      setSaved(true); setTimeout(() => { setSaved(false); setAddMode(false) }, 1500)
+    } catch (err) {
+      alert(err.message || 'خطا در ذخیره ایستگاه')
     }
-    setForm(EMPTY_FORM); setImagePreview('')
-    setSaved(true); setTimeout(() => { setSaved(false); setAddMode(false) }, 1500)
   }
 
   const handleEditStart = (station) => {
@@ -242,14 +271,22 @@ export default function Admin({ stations, setStations }) {
 
   const handleDelete = async (id) => {
     if (!window.confirm('حذف شود؟')) return
-    const updated = await deleteStation(id)
-    setStations(updated)
+    try {
+      await deleteStation(id)
+      setStations(prev => prev.filter(s => s.id !== id))
+    } catch (err) {
+      alert(err.message || 'خطا در حذف ایستگاه')
+    }
   }
 
   const handleToggleStatus = async (id, status) => {
     const next = STATUSES[(STATUSES.findIndex(s => s.value === status) + 1) % STATUSES.length].value
-    const updated = await updateStation(id, { status: next })
-    setStations(updated)
+    try {
+      const updated = await updateStation(id, { status: next })
+      setStations(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s))
+    } catch (err) {
+      alert(err.message || 'خطا در تغییر وضعیت')
+    }
   }
 
   const handleImage = (e) => {
@@ -264,7 +301,7 @@ export default function Admin({ stations, setStations }) {
   , [stations, search])
 
   const allReviews = useMemo(() =>
-    stations.flatMap(s => s.reviews.map(r => ({ ...r, stationName: s.name, stationId: s.id })))
+    stations.flatMap(s => (s.reviews || []).map(r => ({ ...r, stationName: s.name, stationId: s.id })))
   , [stations])
 
   const available = stations.filter(s => s.status === 'available').length
@@ -283,6 +320,62 @@ export default function Admin({ stations, setStations }) {
     color:'#1a1a1a',
   }
   const selectStyle = { ...inputStyle }
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Vazirmatn' }}>
+        در حال بارگذاری...
+      </div>
+    )
+  }
+
+  if (needsAdminAuth) {
+    return (
+      <div style={{
+        minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
+        fontFamily:'Vazirmatn', direction:'rtl', background:'#f4f5f7', padding:24,
+      }}>
+        <form onSubmit={handleAdminLogin} style={{
+          width:'100%', maxWidth:380, background:'#fff', borderRadius:16, padding:28,
+          border:'1px solid #eef0f3', boxShadow:'0 8px 30px rgba(0,0,0,0.06)',
+        }}>
+          <h1 style={{ fontSize:20, fontWeight:700, marginBottom:6 }}>ورود ادمین ولت‌مپ</h1>
+          <p style={{ fontSize:13, color:'#888', marginBottom:20 }}>
+            برای دسترسی به پنل، با حساب ادمین وارد شوید
+          </p>
+          <label style={{ display:'block', fontSize:12, color:'#666', marginBottom:6 }}>ایمیل یا موبایل</label>
+          <input
+            value={adminLogin.identifier}
+            onChange={e => setAdminLogin(p => ({ ...p, identifier: e.target.value }))}
+            style={{ width:'100%', marginBottom:14, border:'1px solid #e5e7eb', borderRadius:10, padding:'10px 12px', fontFamily:'Vazirmatn' }}
+          />
+          <label style={{ display:'block', fontSize:12, color:'#666', marginBottom:6 }}>رمز عبور</label>
+          <input
+            type="password"
+            value={adminLogin.password}
+            onChange={e => setAdminLogin(p => ({ ...p, password: e.target.value }))}
+            style={{ width:'100%', marginBottom:14, border:'1px solid #e5e7eb', borderRadius:10, padding:'10px 12px', fontFamily:'Vazirmatn' }}
+          />
+          {adminLoginError && (
+            <div style={{ color:'#e74c3c', fontSize:13, marginBottom:12 }}>{adminLoginError}</div>
+          )}
+          <button
+            type="submit"
+            disabled={adminLoggingIn}
+            style={{
+              width:'100%', padding:'12px', border:'none', borderRadius:10, cursor:'pointer',
+              background:'#2ECC71', color:'#fff', fontWeight:700, fontFamily:'Vazirmatn',
+            }}
+          >
+            {adminLoggingIn ? 'در حال ورود...' : 'ورود'}
+          </button>
+          <p style={{ fontSize:11, color:'#aaa', marginTop:14, textAlign:'center' }}>
+            پیش‌فرض seed: admin@voltmap.ir / Admin@12345
+          </p>
+        </form>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', fontFamily:'Vazirmatn', direction:'rtl',
@@ -559,7 +652,7 @@ export default function Admin({ stations, setStations }) {
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
-                          <span style={{ fontSize:13, fontWeight:600, color:'#1a1a1a' }}>{r.user}</span>
+                          <span style={{ fontSize:13, fontWeight:600, color:'#1a1a1a' }}>{r.user || r.userName || r.user_name}</span>
                           <div style={{ display:'flex', gap:1 }}>{[1,2,3,4,5].map(n=><Star key={n} size={11} color="#F39C12" fill={n<=r.rating?'#F39C12':'none'}/>)}</div>
                         </div>
                         <p style={{ fontSize:12, color:'#666', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{r.text}</p>
@@ -786,7 +879,7 @@ export default function Admin({ stations, setStations }) {
               {/* Stats row */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:24 }}>
                 <StatCard label="کل کاربران" value={users.length} sub="ثبت‌نام‌شده" subUp Icon={Users} color="#3498DB" bg="#EBF5FB" />
-                <StatCard label="اشتراک طلایی" value={users.filter(u=>u.membership==='طلایی').length} sub="کاربر فعال" subUp Icon={Crown} color="#F59E0B" bg="#fef9e7" />
+                <StatCard label="اشتراک ویژه" value={users.filter(u=>u.membership==='ویژه' || u.membership==='حرفه‌ای').length} sub="کاربر فعال" subUp Icon={Crown} color="#F59E0B" bg="#fef9e7" />
                 <StatCard label="کل نظرات" value={allReviews.length} sub="نظر ثبت شده" subUp Icon={Star} color="#F39C12" bg="#fef9e7" />
                 <StatCard label="میانگین امتیاز" value={allReviews.length ? (allReviews.reduce((a,r)=>a+r.rating,0)/allReviews.length).toFixed(1) : '—'} sub="از ۵" subUp Icon={Star} color="#2ECC71" bg="#e8faf0" />
               </div>
@@ -854,11 +947,11 @@ export default function Admin({ stations, setStations }) {
                                   display:'flex', alignItems:'center', gap:5,
                                   padding:'4px 10px', borderRadius:20, border:'1.5px solid',
                                   fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Vazirmatn',
-                                  background: u.membership === 'طلایی' ? '#fef9e7' : '#f5f5f5',
-                                  borderColor: u.membership === 'طلایی' ? '#F59E0B' : '#e0e0e0',
-                                  color: u.membership === 'طلایی' ? '#D97706' : '#888',
+                                  background: (u.membership === 'ویژه' || u.membership === 'حرفه‌ای') ? '#fef9e7' : '#f5f5f5',
+                                  borderColor: (u.membership === 'ویژه' || u.membership === 'حرفه‌ای') ? '#F59E0B' : '#e0e0e0',
+                                  color: (u.membership === 'ویژه' || u.membership === 'حرفه‌ای') ? '#D97706' : '#888',
                                 }}>
-                                {u.membership === 'طلایی' && <Crown size={11} />}
+                                {(u.membership === 'ویژه' || u.membership === 'حرفه‌ای') && <Crown size={11} />}
                                 {u.membership || 'رایگان'}
                                 <ChevronDown size={11} />
                               </button>
@@ -908,18 +1001,18 @@ export default function Admin({ stations, setStations }) {
                       <div style={{ padding:'8px 14px 6px', fontSize:11, color:'#aaa', borderBottom:'1px solid #f5f5f5' }}>
                         نوع اشتراک: {menuUser.name}
                       </div>
-                      {['رایگان','طلایی'].map(m => (
+                      {MEMBERSHIP_OPTIONS.map(m => (
                         <button key={m} onClick={() => handleMembershipChange(menuUser.id, m)}
                           style={{
                             display:'flex', alignItems:'center', gap:8,
                             width:'100%', padding:'10px 14px', textAlign:'right',
                             fontSize:13, fontFamily:'Vazirmatn', border:'none', cursor:'pointer',
-                            background: menuUser.membership === m ? (m==='طلایی'?'#fef9e7':'#f5f7fa') : 'transparent',
-                            color: m==='طلایی' ? '#D97706' : '#333',
+                            background: menuUser.membership === m ? (m!=='رایگان'?'#fef9e7':'#f5f7fa') : 'transparent',
+                            color: m !== 'رایگان' ? '#D97706' : '#333',
                             fontWeight: menuUser.membership === m ? 700 : 400,
                             transition:'background 0.1s',
                           }}>
-                          {m === 'طلایی'
+                          {m !== 'رایگان'
                             ? <Crown size={14} color="#F59E0B" />
                             : <div style={{ width:14, height:14, borderRadius:'50%', background:'#e0e0e0' }} />
                           }
@@ -948,7 +1041,7 @@ export default function Admin({ stations, setStations }) {
                         </div>
                         <div style={{ flex:1 }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                            <span style={{ fontSize:14, fontWeight:600, color:'#1a1a1a' }}>{r.user}</span>
+                            <span style={{ fontSize:14, fontWeight:600, color:'#1a1a1a' }}>{r.user || r.userName || r.user_name}</span>
                             <div style={{ display:'flex', gap:2 }}>
                               {[1,2,3,4,5].map(n=><Star key={n} size={14} color="#F39C12" fill={n<=r.rating?'#F39C12':'none'} />)}
                             </div>
@@ -1195,9 +1288,9 @@ export default function Admin({ stations, setStations }) {
                             </div>
                           )}
 
-                          {report.ownerNote && (
+                          {(report.notes || report.ownerNote) && (
                             <div style={{ fontSize:12, color:'rgba(255,255,255,0.5)', background:'#f8f9fb', borderRadius:8, padding:'8px 10px', marginBottom:10 }}>
-                              💬 {report.ownerNote}
+                              💬 {report.notes || report.ownerNote}
                             </div>
                           )}
 

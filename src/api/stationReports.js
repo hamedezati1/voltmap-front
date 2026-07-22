@@ -1,23 +1,42 @@
 /**
  * Station Reports API
  *
- * TODO: وقتی به دیتابیس وصل شد، endpoint های واقعی:
- *   POST   /station-reports          — ثبت گزارش ایستگاه جدید توسط کاربر
- *   GET    /station-reports?status=  — لیست برای ادمین
- *   PATCH  /station-reports/:id      — تأیید یا رد توسط ادمین
- *   DELETE /station-reports/:id      — حذف
+ * Endpoints (backend):
+ *   POST   /station-reports
+ *   GET    /station-reports?status=
+ *   PATCH  /station-reports/:id/approve
+ *   PATCH  /station-reports/:id/reject
+ *   DELETE /station-reports/:id
  */
 import { apiClient, USE_MOCK } from './client'
 import { mockStationReports } from '../mocks/stationReportsmoks'
 
-export async function fetchStationReports() {
+/** فقط فیلدهای مجاز بک‌اند را می‌فرستد */
+function toReportPayload(data) {
+  return {
+    name: data.name,
+    city: data.city || undefined,
+    address: data.address || undefined,
+    lat: data.lat !== undefined && data.lat !== '' ? Number(data.lat) : undefined,
+    lng: data.lng !== undefined && data.lng !== '' ? Number(data.lng) : undefined,
+    type: data.type === 'AC' || data.type === 'DC' ? data.type : undefined,
+    connector: data.connector || undefined,
+    notes: data.notes ?? data.ownerNote ?? undefined,
+  }
+}
+
+export async function fetchStationReports(status) {
   if (USE_MOCK) return mockStationReports.getAll()
-  return apiClient('/station-reports')
+  const query = status ? `?status=${encodeURIComponent(status)}` : ''
+  return apiClient(`/station-reports${query}`)
 }
 
 export async function submitStationReport(data) {
   if (USE_MOCK) return mockStationReports.create(data)
-  return apiClient('/station-reports', { method: 'POST', body: data })
+  return apiClient('/station-reports', {
+    method: 'POST',
+    body: toReportPayload(data),
+  })
 }
 
 export async function approveStationReport(id) {
@@ -27,10 +46,14 @@ export async function approveStationReport(id) {
 
 export async function rejectStationReport(id, reason) {
   if (USE_MOCK) return mockStationReports.reject(id, reason)
-  return apiClient(`/station-reports/${id}/reject`, { method: 'PATCH', body: { reason } })
+  return apiClient(`/station-reports/${id}/reject`, {
+    method: 'PATCH',
+    body: { reason },
+  })
 }
 
 export async function deleteStationReport(id) {
   if (USE_MOCK) return mockStationReports.remove(id)
-  return apiClient(`/station-reports/${id}`, { method: 'DELETE' })
+  await apiClient(`/station-reports/${id}`, { method: 'DELETE' })
+  return true
 }

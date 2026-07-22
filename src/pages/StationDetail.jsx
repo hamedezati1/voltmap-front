@@ -33,10 +33,10 @@ export default function StationDetail({ stations, setStations }) {
 
   useEffect(() => {
     if (!station) return
-    // TODO: GET /stations/:id/favorites (بررسی علاقه‌مندی کاربر)
-    setIsFav(isFavoriteStation(station.id))
-    // TODO: GET /stations/:id/crowd-reports (دریافت آمار گزارش‌ها)
-    setCrowdStats(getCrowdStats(station.id))
+    let cancelled = false
+    isFavoriteStation(station.id).then(v => { if (!cancelled) setIsFav(!!v) })
+    getCrowdStats(station.id).then(v => { if (!cancelled) setCrowdStats(v) }).catch(() => {})
+    return () => { cancelled = true }
   }, [station])
 
   if (!station) return (
@@ -47,17 +47,19 @@ export default function StationDetail({ stations, setStations }) {
 
   const currentStatus = STATUSES.find(s => s.value === station.status) || STATUSES[0]
 
-  // ─── ثبت نظر ─────────────────────────────────────────────────────────────
-  // TODO: POST /stations/:id/reviews
   const handleAddReview = async () => {
     if (!reviewText.trim()) return
-    const updated = await addStationReview(station.id, {
-      user: reviewName || 'کاربر ناشناس',
-      text: reviewText,
-      rating: reviewRating,
-    })
-    setStations(updated)
-    setReviewText(''); setReviewName(''); setReviewRating(5); setShowForm(false)
+    try {
+      const updated = await addStationReview(station.id, {
+        user: reviewName || 'کاربر ناشناس',
+        text: reviewText,
+        rating: reviewRating,
+      })
+      setStations(prev => prev.map(s => Number(s.id) === Number(updated.id) ? updated : s))
+      setReviewText(''); setReviewName(''); setReviewRating(5); setShowForm(false)
+    } catch (err) {
+      alert(err.message || 'خطا در ثبت نظر')
+    }
   }
 
   // ─── علاقه‌مندی ──────────────────────────────────────────────────────────
@@ -78,10 +80,8 @@ export default function StationDetail({ stations, setStations }) {
     setCrowdLoading(true)
     try {
       const result = await submitCrowdReport(station.id, type)
-      // آپدیت آمار محلی
-      const newStats = getCrowdStats(station.id)
+      const newStats = await getCrowdStats(station.id)
       setCrowdStats(newStats)
-      // اگه الگوریتم وضعیت رو آپدیت کرد، لیست ایستگاه‌ها رو refresh کن
       if (result?.updated && result?.status) {
         setStations(prev => prev.map(s =>
           s.id === station.id ? { ...s, status: result.status } : s
@@ -283,7 +283,7 @@ export default function StationDetail({ stations, setStations }) {
             : station.reviews.map((r,i) => (
               <div key={i} className="mb-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700">
                 <div className="flex justify-between items-center mb-1">
-                  <span style={{ fontSize:13, fontWeight:600 }} className="text-gray-900 dark:text-white">{r.user}</span>
+                  <span style={{ fontSize:13, fontWeight:600 }} className="text-gray-900 dark:text-white">{r.user || r.userName || r.user_name}</span>
                   <div className="flex gap-0.5">{[1,2,3,4,5].map(n=><Star key={n} size={12} color="#F39C12" fill={n<=r.rating?'#F39C12':'none'} />)}</div>
                 </div>
                 <p style={{ fontSize:12 }} className="text-gray-600 dark:text-gray-300">{r.text}</p>

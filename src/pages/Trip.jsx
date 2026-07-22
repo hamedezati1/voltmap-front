@@ -410,7 +410,7 @@ export default function Trip() {
   const { user } = useAuth()
 
   // بررسی membership
-  const isGold = user?.membership === 'طلایی' || user?.membership === 'gold'
+  const isGold = user?.membership === 'ویژه' || user?.membership === 'حرفه‌ای' || user?.membership === 'طلایی' || user?.membership === 'gold'
 
   // مراحل
   // modal1=معرفی، modal2=ورود اطلاعات خودرو، main=صفحه اصلی

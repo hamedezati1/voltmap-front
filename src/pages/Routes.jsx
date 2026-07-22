@@ -130,7 +130,7 @@ export default function RoutesPage() {
       // کلیک روی ایستگاه → نمایش اسلاید (نه popup لیفلت)
       marker.on('click', () => {
         setSelectedStation(s)
-        setIsFav(isFavoriteStation(s.id))
+        isFavoriteStation(s.id).then(setIsFav)
       })
       markersRef.current.push(marker)
     })

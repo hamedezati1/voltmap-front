@@ -276,7 +276,7 @@ function StationReportForm({ onClose }) {
 export default function Reports() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const isGold = user?.membership === 'طلایی' || user?.membership === 'gold'
+  const isGold = user?.membership === 'ویژه' || user?.membership === 'حرفه‌ای' || user?.membership === 'طلایی' || user?.membership === 'gold'
 
   const [tab, setTab]         = useState('news')  // 'news' | 'report'
   const [news, setNews]       = useState([])

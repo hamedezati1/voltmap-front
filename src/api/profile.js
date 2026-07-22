@@ -2,13 +2,14 @@
  * Profile API
  *
  * Endpoints (backend):
- *   GET    /profile                  — پروفایل کاربر جاری
- *   PATCH  /profile                  — ویرایش پروفایل
- *   GET    /profile/favorites         — ایستگاه‌های مورد علاقه (با جزئیات کامل)
- *   POST   /profile/favorites/:id    — افزودن به علاقه‌مندی‌ها
- *   DELETE /profile/favorites/:id    — حذف از علاقه‌مندی‌ها
+ *   GET    /profile
+ *   PATCH  /profile
+ *   GET    /profile/favorites
+ *   POST   /profile/favorites/:id
+ *   DELETE /profile/favorites/:id
  */
 import { apiClient, USE_MOCK } from './client'
+import { normalizeStations } from './normalize'
 import { mockProfile } from '../mocks/profile'
 import { mockStations } from '../mocks/stations'
 import { getStoredSession } from '../mocks/auth'
@@ -23,13 +24,10 @@ export async function fetchProfile() {
     const session = getStoredSession()
     const userId = session?.user?.id ?? null
     const stored = await mockProfile.get(userId)
-    // اطلاعات اصلی کاربر از session میاد، بقیه از profile store
     return {
       name: session?.user?.name ?? '',
       email: session?.user?.email ?? '',
       phone: session?.user?.phone ?? '',
-      // membership اول از session (که ادمین آپدیت می‌کنه) خونده می‌شه
-      // TODO: وقتی به دیتابیس وصل شد، از GET /profile/membership بگیر
       membership: session?.user?.membership ?? stored.membership ?? 'رایگان',
       totalSessions: stored.totalSessions ?? 0,
       totalKwh: stored.totalKwh ?? 0,
@@ -47,7 +45,6 @@ export async function updateProfile(data) {
   return apiClient('/profile', { method: 'PATCH', body: data })
 }
 
-/** لیست ایستگاه‌های مورد علاقه با جزئیات کامل (سینک با stations store) */
 export async function fetchFavoriteStations() {
   if (USE_MOCK) {
     const userId = currentUserId()
@@ -55,9 +52,10 @@ export async function fetchFavoriteStations() {
     const ids = profile.favoriteStationIds ?? []
     if (ids.length === 0) return []
     const allStations = await mockStations.getAll()
-    return allStations.filter(s => ids.includes(s.id))
+    return normalizeStations(allStations.filter(s => ids.includes(s.id)))
   }
-  return apiClient('/profile/favorites')
+  const list = await apiClient('/profile/favorites')
+  return normalizeStations(list)
 }
 
 export async function addFavoriteStation(stationId) {
@@ -66,7 +64,8 @@ export async function addFavoriteStation(stationId) {
     await mockProfile.addFavorite(userId, stationId)
     return true
   }
-  return apiClient(`/profile/favorites/${stationId}`, { method: 'POST' })
+  await apiClient(`/profile/favorites/${stationId}`, { method: 'POST' })
+  return true
 }
 
 export async function removeFavoriteStation(stationId) {
@@ -75,10 +74,19 @@ export async function removeFavoriteStation(stationId) {
     await mockProfile.removeFavorite(userId, stationId)
     return true
   }
-  return apiClient(`/profile/favorites/${stationId}`, { method: 'DELETE' })
+  await apiClient(`/profile/favorites/${stationId}`, { method: 'DELETE' })
+  return true
 }
 
-export function isFavoriteStation(stationId) {
-  const userId = currentUserId()
-  return mockProfile.isFavorite(userId, stationId)
+/**
+ * بررسی علاقه‌مندی — در حالت real از لیست favorites استفاده می‌شود.
+ * برای سازگاری با کد قبلی، هم sync (فقط mock) و هم async قابل استفاده است.
+ */
+export async function isFavoriteStation(stationId) {
+  if (USE_MOCK) {
+    const userId = currentUserId()
+    return mockProfile.isFavorite(userId, stationId)
+  }
+  const favorites = await fetchFavoriteStations()
+  return favorites.some(s => Number(s.id) === Number(stationId))
 }

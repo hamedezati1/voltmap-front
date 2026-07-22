@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { login as apiLogin, register as apiRegister, logout as apiLogout, getSession } from '../api/auth'
+import { setAccessToken, clearAccessToken } from '../api/tokenStore'
 
 const AuthContext = createContext(null)
 
@@ -14,7 +15,13 @@ export function AuthProvider({ children }) {
         if (session?.user && session?.token) {
           setUser(session.user)
           setToken(session.token)
+          setAccessToken(session.token)
+        } else {
+          clearAccessToken()
         }
+      })
+      .catch(() => {
+        clearAccessToken()
       })
       .finally(() => setLoading(false))
   }, [])
@@ -23,6 +30,7 @@ export function AuthProvider({ children }) {
     const session = await apiLogin(credentials)
     setUser(session.user)
     setToken(session.token)
+    setAccessToken(session.token)
     return session
   }, [])
 
@@ -30,19 +38,24 @@ export function AuthProvider({ children }) {
     const session = await apiRegister(data)
     setUser(session.user)
     setToken(session.token)
+    setAccessToken(session.token)
     return session
   }, [])
 
   const logout = useCallback(async () => {
-    await apiLogout()
-    setUser(null)
-    setToken(null)
+    try {
+      await apiLogout()
+    } finally {
+      setUser(null)
+      setToken(null)
+      clearAccessToken()
+    }
   }, [])
 
   const isAuthenticated = !!token
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   )

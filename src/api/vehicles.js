@@ -1,18 +1,33 @@
 /**
  * Vehicles API
- *
- * Endpoints (backend):
- *   GET    /vehicles          — لیست خودروهای کاربر
- *   GET    /vehicles/:id      — جزئیات یک خودرو
- *   POST   /vehicles          — افزودن خودروی جدید
- *   PATCH  /vehicles/:id      — ویرایش خودرو
- *   DELETE /vehicles/:id      — حذف خودرو
  */
 import { apiClient, USE_MOCK } from './client'
 import { MOCK_VEHICLES } from '../mocks/vehicles'
 
-// کپی محلی برای شبیه‌سازی state سرور در حالت mock
 let mockVehiclesStore = [...MOCK_VEHICLES]
+
+function toVehiclePayload(data) {
+  const payload = {
+    name: data.name,
+    connector: data.connector,
+  }
+  if (data.image && typeof data.image === 'string' && data.image.startsWith('http')) {
+    payload.image = data.image
+  } else if (data.image === null) {
+    payload.image = null
+  }
+  if (data.batteryLevel !== undefined && data.batteryLevel !== null && data.batteryLevel !== '') {
+    payload.batteryLevel = Number(data.batteryLevel)
+  }
+  if (data.estimatedRange !== undefined && data.estimatedRange !== null && Number(data.estimatedRange) > 0) {
+    payload.estimatedRange = Number(data.estimatedRange)
+  }
+  if (data.year !== undefined && data.year !== null && data.year !== '') {
+    payload.year = Number(data.year)
+  }
+  if (data.isDefault !== undefined) payload.isDefault = Boolean(data.isDefault)
+  return payload
+}
 
 export async function fetchVehicles() {
   if (USE_MOCK) {
@@ -42,7 +57,7 @@ export async function addVehicle(data) {
     mockVehiclesStore = [...mockVehiclesStore, newVehicle]
     return newVehicle
   }
-  return apiClient('/vehicles', { method: 'POST', body: data })
+  return apiClient('/vehicles', { method: 'POST', body: toVehiclePayload(data) })
 }
 
 export async function updateVehicle(id, data) {
@@ -53,7 +68,7 @@ export async function updateVehicle(id, data) {
     )
     return mockVehiclesStore.find(v => String(v.id) === String(id))
   }
-  return apiClient(`/vehicles/${id}`, { method: 'PATCH', body: data })
+  return apiClient(`/vehicles/${id}`, { method: 'PATCH', body: toVehiclePayload(data) })
 }
 
 export async function deleteVehicle(id) {
@@ -62,5 +77,6 @@ export async function deleteVehicle(id) {
     mockVehiclesStore = mockVehiclesStore.filter(v => String(v.id) !== String(id))
     return true
   }
-  return apiClient(`/vehicles/${id}`, { method: 'DELETE' })
+  await apiClient(`/vehicles/${id}`, { method: 'DELETE' })
+  return true
 }
