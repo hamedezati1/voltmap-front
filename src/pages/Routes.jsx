@@ -92,9 +92,14 @@ export default function RoutesPage() {
   // TODO: فیلتر — وقتی به دیتابیس وصل شد: GET /stations?connector=...&type=...&fast=true
   useEffect(() => {
     let result = stations
-    if (filterConn.length) result = result.filter(s => filterConn.includes(s.connector))
+    if (filterConn.length) {
+      result = result.filter(s => {
+        const c = (s.connectors || s.connector || '').toLowerCase()
+        return filterConn.some(fc => c.includes(String(fc).toLowerCase()))
+      })
+    }
     if (filterType.length) result = result.filter(s => filterType.includes(s.type))
-    if (filterFast)        result = result.filter(s => s.type === 'DC' && s.power >= 50)
+    if (filterFast)        result = result.filter(s => (s.type === 'DC' || s.type === 'AC/DC') && s.power >= 50)
     setFiltered(result)
   }, [stations, filterConn, filterType, filterFast])
 
@@ -121,6 +126,7 @@ export default function RoutesPage() {
     markersRef.current.forEach(m => m.remove())
     markersRef.current = []
     filtered.forEach(s => {
+      if (s.lat == null || s.lng == null) return
       const icon = L.divIcon({
         className: '',
         html: buildPinHTML(s),

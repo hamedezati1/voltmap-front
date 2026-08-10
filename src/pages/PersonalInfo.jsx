@@ -3,28 +3,46 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, User, Mail, Phone, Save, Loader2, Check } from "lucide-react";
 import { updateProfile } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { FieldError } from "../components/FieldError";
+import { validateProfile, inputErrorClass } from "../lib/validation";
+
+const inputBase =
+  "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400 focus:bg-white dark:border-gray-700 dark:bg-gray-700/50 dark:text-white dark:focus:bg-gray-700";
 
 export default function PersonalInfo() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
 
   const [form, setForm] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    phone: user?.phone || "",
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleChange = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    const value = e.target.value;
+    setForm((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   const handleSave = async () => {
+    const result = validateProfile(form);
+    setErrors(result.errors);
+    if (!result.ok) return;
+
     setSaving(true);
     try {
-      await updateProfile(form);
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim() || undefined,
+      };
+      const updated = await updateProfile(payload);
+      if (updated && setUser) {
+        setUser((prev) => ({ ...prev, ...updated }));
+      }
       setSaved(true);
     } finally {
       setSaving(false);
@@ -33,7 +51,6 @@ export default function PersonalInfo() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900" style={{ paddingBottom: 80 }}>
-      {/* Header */}
       <div className="relative overflow-hidden">
         <div
           className="absolute inset-0"
@@ -65,9 +82,12 @@ export default function PersonalInfo() {
                 type="text"
                 value={form.name}
                 onChange={handleChange("name")}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400 focus:bg-white dark:border-gray-700 dark:bg-gray-700/50 dark:text-white dark:focus:bg-gray-700"
+                className={`${inputBase} ${inputErrorClass(!!errors.name)}`}
                 placeholder="نام شما"
+                maxLength={100}
               />
+              <FieldError message={errors.name} />
+              <p className="mt-1 text-[11px] text-gray-400">بین ۲ تا ۱۰۰ کاراکتر</p>
             </div>
 
             <div>
@@ -79,25 +99,29 @@ export default function PersonalInfo() {
                 type="email"
                 value={form.email}
                 onChange={handleChange("email")}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400 focus:bg-white dark:border-gray-700 dark:bg-gray-700/50 dark:text-white dark:focus:bg-gray-700"
+                className={`${inputBase} ${inputErrorClass(!!errors.email)}`}
                 placeholder="email@example.com"
                 dir="ltr"
               />
+              <FieldError message={errors.email} />
             </div>
 
             <div>
               <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
                 <Phone size={13} />
-                شماره تلفن
+                شماره موبایل
               </label>
               <input
                 type="tel"
-                value={form.phone}
-                onChange={handleChange("phone")}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-emerald-400 focus:bg-white dark:border-gray-700 dark:bg-gray-700/50 dark:text-white dark:focus:bg-gray-700"
-                placeholder="09xxxxxxxxx"
+                value={user?.phone || ""}
+                readOnly
+                disabled
+                className={`${inputBase} cursor-not-allowed opacity-70`}
                 dir="ltr"
               />
+              <p className="mt-1 text-[11px] text-gray-400">
+                شماره موبایل همان هویت ورود شماست و قابل تغییر نیست
+              </p>
             </div>
           </div>
 

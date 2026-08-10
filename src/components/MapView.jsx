@@ -23,7 +23,8 @@ const STATUS_COLORS = {
 export function buildPinHTML(station) {
   const status = station.status || "available";
   const c = STATUS_COLORS[status] || STATUS_COLORS.available;
-  const power = station.power ? `${station.power}KW` : "—";
+  const powerNum = station.power || (String(station.maxPower || "").match(/(\d+(?:\.\d+)?)/g) || []).map(Number).sort((a,b)=>b-a)[0];
+  const power = powerNum ? `${powerNum}KW` : "—";
 
   return `
     <div style="position:relative; width:52px; height:64px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35));">
@@ -153,6 +154,8 @@ const MapView = forwardRef(function MapView({ stations, onPinClick, onMapInterac
     markersRef.current = [];
 
     stations.forEach((s) => {
+      if (s.lat == null || s.lng == null || Number.isNaN(Number(s.lat)) || Number.isNaN(Number(s.lng))) return
+
       const c = STATUS_COLORS[s.status] || STATUS_COLORS.available;
 
       const statusLabels = {
@@ -170,16 +173,18 @@ const MapView = forwardRef(function MapView({ stations, onPinClick, onMapInterac
         popupAnchor: [0, -72],
       });
 
+      const powerText = s.maxPower || (s.power ? `${s.power}` : "—")
       const marker = L.marker([s.lat, s.lng], { icon }).addTo(map).bindPopup(`
           <div style="font-family: Vazirmatn, sans-serif; direction: rtl; min-width: 170px;">
             <div style="font-weight:700; font-size:13px; margin-bottom:4px; color:#1a1a1a;">${s.name}</div>
-            <div style="font-size:12px; color:#888; margin-bottom:8px;">${s.city}</div>
+            <div style="font-size:12px; color:#888; margin-bottom:4px;">${[s.operator, s.city].filter(Boolean).join(" · ")}</div>
+            <div style="font-size:11px; color:#aaa; margin-bottom:8px;">${s.address || ""}</div>
             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
               <span style="font-size:11px; background:${c.main}22; color:${c.main}; padding:3px 10px; border-radius:12px; font-weight:600;">
                 ${statusLabels[s.status] || "—"}
               </span>
-              <span style="font-size:11px; color:#555;">${s.power}kW · ${s.type}</span>
-              <span style="font-size:11px; color:#888;">${s.connector}</span>
+              <span style="font-size:11px; color:#555;">${powerText}kW · ${s.type}</span>
+              <span style="font-size:11px; color:#888;">${s.connector || ""}</span>
             </div>
           </div>
         `);

@@ -1,5 +1,6 @@
 const USERS_KEY = 'voltmap_users'
 const SESSION_KEY = 'voltmap_session'
+const OTP_KEY = 'voltmap_otps'
 
 function readUsers() {
   try {
@@ -12,6 +13,19 @@ function readUsers() {
 
 function writeUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users))
+}
+
+function readOtps() {
+  try {
+    const raw = localStorage.getItem(OTP_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeOtps(otps) {
+  localStorage.setItem(OTP_KEY, JSON.stringify(otps))
 }
 
 function saveSession(session) {
@@ -32,55 +46,92 @@ export function clearStoredSession() {
 }
 
 function delay(ms = 400) {
-  return new Promise(r => setTimeout(r, ms))
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+function toPublic(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email ?? null,
+    phone: user.phone,
+    role: user.role ?? 'user',
+    membership: user.membership ?? 'رایگان',
+  }
 }
 
 export const mockAuth = {
-  async login({ identifier, password }) {
+  async requestOtp({ phone, purpose }) {
     await delay()
     const users = readUsers()
-    const user = users.find(
-      u => (u.email === identifier || u.phone === identifier) && u.password === password
-    )
-    if (!user) {
-      const err = new Error('ایمیل/موبایل یا رمز عبور اشتباه است')
+    const exists = users.some((u) => u.phone === phone)
+
+    if (purpose === 'login' && !exists) {
+      const err = new Error('حسابی با این شماره یافت نشد. ابتدا ثبت‌نام کنید')
+      err.status = 400
+      throw err
+    }
+    if (purpose === 'register' && exists) {
+      const err = new Error('این شماره قبلاً ثبت شده است. وارد شوید')
+      err.status = 409
+      throw err
+    }
+
+    const code = '12345'
+    const otps = readOtps()
+    otps[phone] = { code, purpose, expiresAt: Date.now() + 120000 }
+    writeOtps(otps)
+    console.info(`[MOCK SMS] OTP for ${phone}: ${code}`)
+    return { ok: true, phone, expiresIn: 120, resendAfter: 60 }
+  },
+
+  async verifyOtp({ phone, code, purpose, name }) {
+    await delay()
+    const otps = readOtps()
+    const otp = otps[phone]
+    if (!otp || otp.purpose !== purpose || otp.expiresAt < Date.now()) {
+      const err = new Error('کد منقضی شده یا یافت نشد')
       err.status = 401
       throw err
     }
+    if (String(code) !== String(otp.code)) {
+      const err = new Error('کد تأیید اشتباه است')
+      err.status = 401
+      throw err
+    }
+
+    delete otps[phone]
+    writeOtps(otps)
+
+    let users = readUsers()
+    let user = users.find((u) => u.phone === phone)
+
+    if (purpose === 'register') {
+      if (user) {
+        const err = new Error('این شماره قبلاً ثبت شده است')
+        err.status = 409
+        throw err
+      }
+      user = {
+        id: Date.now(),
+        name: name?.trim() || 'کاربر',
+        phone,
+        email: null,
+        role: 'user',
+        membership: 'رایگان',
+        createdAt: new Date().toISOString(),
+      }
+      users = [...users, user]
+      writeUsers(users)
+    } else if (!user) {
+      const err = new Error('حسابی با این شماره یافت نشد')
+      err.status = 401
+      throw err
+    }
+
     const session = {
       token: `mock-token-${user.id}`,
-      user: { id: user.id, name: user.name, email: user.email, phone: user.phone, membership: user.membership ?? 'رایگان' },
-    }
-    saveSession(session)
-    return session
-  },
-
-  async register({ name, email, phone, password }) {
-    await delay()
-    const users = readUsers()
-    if (users.some(u => u.email === email)) {
-      const err = new Error('این ایمیل قبلاً ثبت شده است')
-      err.status = 409
-      throw err
-    }
-    if (users.some(u => u.phone === phone)) {
-      const err = new Error('این شماره موبایل قبلاً ثبت شده است')
-      err.status = 409
-      throw err
-    }
-    const newUser = {
-      id: Date.now(),
-      name,
-      email,
-      phone,
-      password,
-      membership: 'رایگان', // TODO: وقتی به دیتابیس وصل شد از payment سرویس بگیر
-      createdAt: new Date().toISOString(),
-    }
-    writeUsers([...users, newUser])
-    const session = {
-      token: `mock-token-${newUser.id}`,
-      user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone, membership: newUser.membership },
+      user: toPublic(user),
     }
     saveSession(session)
     return session
@@ -97,13 +148,12 @@ export const mockAuth = {
   },
 }
 
-// تغییر membership کاربر (برای ادمین)
-// TODO: PATCH /admin/users/:id/membership
 export function updateUserMembership(userId, membership) {
   const users = readUsers()
-  const updated = users.map(u => u.id === userId ? { ...u, membership } : u)
+  const updated = users.map((u) =>
+    u.id === userId ? { ...u, membership } : u,
+  )
   writeUsers(updated)
-  // آپدیت session هم بشه
   const session = getStoredSession()
   if (session?.user?.id === userId) {
     const newSession = { ...session, user: { ...session.user, membership } }

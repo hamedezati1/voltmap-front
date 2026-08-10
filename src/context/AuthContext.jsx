@@ -1,5 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { login as apiLogin, register as apiRegister, logout as apiLogout, getSession } from '../api/auth'
+import {
+  requestOtp as apiRequestOtp,
+  verifyOtp as apiVerifyOtp,
+  logout as apiLogout,
+  getSession,
+} from '../api/auth'
 import { setAccessToken, clearAccessToken } from '../api/tokenStore'
 
 const AuthContext = createContext(null)
@@ -11,7 +16,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     getSession()
-      .then(session => {
+      .then((session) => {
         if (session?.user && session?.token) {
           setUser(session.user)
           setToken(session.token)
@@ -26,25 +31,21 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
-  const login = useCallback(async (credentials) => {
-    const session = await apiLogin(credentials)
+  const requestOtp = useCallback(async (payload, options) => {
+    return apiRequestOtp(payload, options)
+  }, [])
+
+  const verifyOtp = useCallback(async (payload, options) => {
+    const session = await apiVerifyOtp(payload, options)
     setUser(session.user)
     setToken(session.token)
     setAccessToken(session.token)
     return session
   }, [])
 
-  const register = useCallback(async (data) => {
-    const session = await apiRegister(data)
-    setUser(session.user)
-    setToken(session.token)
-    setAccessToken(session.token)
-    return session
-  }, [])
-
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (options) => {
     try {
-      await apiLogout()
+      await apiLogout(options)
     } finally {
       setUser(null)
       setToken(null)
@@ -55,7 +56,18 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!token
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, logout, setUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        isAuthenticated,
+        requestOtp,
+        verifyOtp,
+        logout,
+        setUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

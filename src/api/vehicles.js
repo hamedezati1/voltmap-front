@@ -7,10 +7,12 @@ import { MOCK_VEHICLES } from '../mocks/vehicles'
 let mockVehiclesStore = [...MOCK_VEHICLES]
 
 function toVehiclePayload(data) {
-  const payload = {
-    name: data.name,
-    connector: data.connector,
+  const payload = {}
+  if (data.catalogCarId != null && data.catalogCarId !== '') {
+    payload.catalogCarId = Number(data.catalogCarId)
   }
+  if (data.name) payload.name = data.name
+  if (data.connector) payload.connector = data.connector
   if (data.image && typeof data.image === 'string' && data.image.startsWith('http')) {
     payload.image = data.image
   } else if (data.image === null) {
@@ -52,7 +54,11 @@ export async function addVehicle(data) {
       id: `veh_${Date.now()}`,
       image: null,
       isDefault: mockVehiclesStore.length === 0,
-      ...data,
+      name: data.name,
+      connector: data.connector,
+      batteryLevel: data.batteryLevel ?? null,
+      estimatedRange: data.estimatedRange ?? null,
+      year: data.year ?? null,
     }
     mockVehiclesStore = [...mockVehiclesStore, newVehicle]
     return newVehicle

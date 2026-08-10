@@ -1,7 +1,10 @@
-// TODO: وقتی به دیتابیس وصل شد، همه importها از api باید endpoint‌های واقعی رو call کنن
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowRight, MapPin, Zap, Clock, DollarSign, Star, Navigation, RefreshCw, Heart, Loader2, Users, CheckCircle, XCircle } from 'lucide-react'
+import {
+  ArrowRight, MapPin, Zap, Clock, DollarSign, Star, Navigation, Heart, Loader2,
+  Users, CheckCircle, XCircle, Phone, Building2, Plug, ParkingCircle, BadgeCheck,
+  Info, Calendar,
+} from 'lucide-react'
 import { addStationReview, addFavoriteStation, removeFavoriteStation, isFavoriteStation, submitCrowdReport, getCrowdStats } from '../api'
 
 const STATUSES = [
@@ -11,11 +14,24 @@ const STATUSES = [
   { value:'offline',   label:'خاموش', color:'#95a5a6', bg:'#f0f0f0' },
 ]
 
+function InfoRow({ icon: Icon, label, value }) {
+  if (value == null || value === '') return null
+  return (
+    <div className="flex items-start gap-3 py-2.5 border-b border-gray-50 dark:border-gray-700 last:border-0">
+      <div style={{ width:32, height:32, borderRadius:10, background:'#f3faf5', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+        <Icon size={15} color="#2ECC71" />
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <p style={{ fontSize:11, color:'#999', marginBottom:2 }}>{label}</p>
+        <p style={{ fontSize:13, fontWeight:600 }} className="text-gray-900 dark:text-white break-words">{value}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function StationDetail({ stations, setStations }) {
   const { id } = useParams()
   const navigate = useNavigate()
-
-  // TODO: وقتی به دیتابیس وصل شد، ایستگاه رو از API بگیر: GET /stations/:id
   const station = stations.find(s => s.id === Number(id))
 
   const [reviewText,   setReviewText]   = useState('')
@@ -24,12 +40,10 @@ export default function StationDetail({ stations, setStations }) {
   const [showForm,     setShowForm]     = useState(false)
   const [isFav,        setIsFav]        = useState(false)
   const [favLoading,   setFavLoading]   = useState(false)
-
-  // ─── حضور کاربر ─────────────────────────────────────────────────────────
-  // مراحل: idle → confirm → reporting → done
   const [crowdStep,    setCrowdStep]    = useState('idle')
   const [crowdLoading, setCrowdLoading] = useState(false)
-  const [crowdStats,   setCrowdStats]   = useState(null)  // آمار گزارش‌ها برای نمایش
+  const [crowdStats,   setCrowdStats]   = useState(null)
+  const [activeImage,  setActiveImage]  = useState(0)
 
   useEffect(() => {
     if (!station) return
@@ -46,6 +60,19 @@ export default function StationDetail({ stations, setStations }) {
   )
 
   const currentStatus = STATUSES.find(s => s.value === station.status) || STATUSES[0]
+  const images = [station.image1, station.image2, station.image3].filter(Boolean)
+  const heroImage = images[activeImage] || station.image
+  const portsLabel = [
+    station.acPorts > 0 ? `${station.acPorts} پورت AC` : null,
+    station.dcPorts > 0 ? `${station.dcPorts} پورت DC` : null,
+  ].filter(Boolean).join(' · ') || `${station.ports || 0} پورت`
+  const priceLabel = station.isFree
+    ? 'رایگان'
+    : (station.price || (station.pricePerKwh ? `${station.pricePerKwh} تومان/kWh` : '—'))
+  const locationLabel = [station.province, station.city, station.district].filter(Boolean).join(' · ')
+  const dataUpdated = station.dataUpdatedAt
+    ? new Date(station.dataUpdatedAt).toLocaleDateString('fa-IR')
+    : null
 
   const handleAddReview = async () => {
     if (!reviewText.trim()) return
@@ -62,8 +89,6 @@ export default function StationDetail({ stations, setStations }) {
     }
   }
 
-  // ─── علاقه‌مندی ──────────────────────────────────────────────────────────
-  // TODO: POST/DELETE /profile/favorites/:id
   const handleToggleFavorite = async () => {
     setFavLoading(true)
     try {
@@ -72,10 +97,6 @@ export default function StationDetail({ stations, setStations }) {
     } finally { setFavLoading(false) }
   }
 
-  // ─── گزارش حضور کاربر ────────────────────────────────────────────────────
-  // TODO: POST /stations/:id/crowd-report با { type: 'busy'|'available' }
-  // الگوریتم: سرور میانگین گزارش‌های ۳۰ دقیقه اخیر رو حساب می‌کنه
-  //          اگه ≥ ۲ گزارش باشه و اکثریت (>۵۰٪) شلوغ بگن → وضعیت busy میشه
   const handleCrowdReport = async (type) => {
     setCrowdLoading(true)
     try {
@@ -93,10 +114,9 @@ export default function StationDetail({ stations, setStations }) {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900" style={{ paddingBottom:80 }}>
-      {/* Hero */}
-      <div style={{ height:200, background:'#e0f2e0', position:'relative', overflow:'hidden' }}>
-        {station.image
-          ? <img src={station.image} alt={station.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+      <div style={{ height:220, background:'#e0f2e0', position:'relative', overflow:'hidden' }}>
+        {heroImage
+          ? <img src={heroImage} alt={station.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Zap size={64} color="#2ECC71" opacity={0.3} />
             </div>
@@ -105,28 +125,55 @@ export default function StationDetail({ stations, setStations }) {
           style={{ position:'absolute', top:12, right:12, background:'rgba(255,255,255,0.9)', borderRadius:12, width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', border:'none', cursor:'pointer' }}>
           <ArrowRight size={20} color="#333" />
         </button>
-        <div style={{ position:'absolute', bottom:12, right:12, background:currentStatus.bg, color:currentStatus.color, padding:'4px 12px', borderRadius:20, fontSize:12, fontWeight:600 }}>
-          {currentStatus.label}
+        <div style={{ position:'absolute', bottom:12, right:12, display:'flex', gap:6, alignItems:'center' }}>
+          {station.isVerified && (
+            <span style={{ background:'#E6F1FB', color:'#0C447C', padding:'4px 10px', borderRadius:20, fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>
+              <BadgeCheck size={12} /> تأییدشده
+            </span>
+          )}
+          <span style={{ background:currentStatus.bg, color:currentStatus.color, padding:'4px 12px', borderRadius:20, fontSize:12, fontWeight:600 }}>
+            {currentStatus.label}
+          </span>
         </div>
       </div>
 
+      {images.length > 1 && (
+        <div className="flex gap-2 px-4 pt-3 overflow-x-auto">
+          {images.map((src, i) => (
+            <button key={i} onClick={() => setActiveImage(i)}
+              style={{ width:56, height:56, borderRadius:10, overflow:'hidden', border: i===activeImage ? '2px solid #2ECC71' : '2px solid transparent', padding:0, flexShrink:0 }}>
+              <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="px-4 pt-4 flex flex-col gap-3">
-        {/* Main info */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
-          <h1 style={{ fontSize:18, fontWeight:700, marginBottom:6 }} className="text-gray-900 dark:text-white">{station.name}</h1>
-          <p style={{ fontSize:13, marginBottom:12, display:'flex', alignItems:'center', gap:4 }} className="text-gray-500 dark:text-gray-400">
-            <MapPin size={13} color="#2ECC71" /> {station.address}
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <h1 style={{ fontSize:18, fontWeight:700 }} className="text-gray-900 dark:text-white">{station.name}</h1>
+            {station.code && (
+              <span style={{ fontSize:11, background:'#f5f5f5', color:'#666', padding:'3px 8px', borderRadius:8, flexShrink:0 }}>{station.code}</span>
+            )}
+          </div>
+          {station.operator && (
+            <p style={{ fontSize:12, marginBottom:8, display:'flex', alignItems:'center', gap:4 }} className="text-gray-500">
+              <Building2 size={12} color="#2ECC71" /> {station.operator}
+            </p>
+          )}
+          <p style={{ fontSize:13, marginBottom:12, display:'flex', alignItems:'flex-start', gap:4 }} className="text-gray-500 dark:text-gray-400">
+            <MapPin size={13} color="#2ECC71" style={{ marginTop:2, flexShrink:0 }} />
+            <span>{[locationLabel, station.address].filter(Boolean).join(' — ')}</span>
           </p>
 
-          {/* Stats grid */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[
-              { label:'نوع', value:station.type },
-              { label:'توان', value:`${station.power} kW` },
-              { label:'پورت‌ها', value:`${station.ports} عدد` },
-              { label:'کانکتور', value:station.connector },
-              { label:'ساعات', value:station.hours||'۲۴ ساعته' },
-              { label:'قیمت', value:station.price||'—' },
+              { label:'نوع', value: station.type },
+              { label:'توان', value: `${station.maxPower || station.power || '—'} kW` },
+              { label:'پورت‌ها', value: portsLabel },
+              { label:'سوکت', value: station.connectors || station.connector || '—' },
+              { label:'ساعات', value: station.hours || '—' },
+              { label:'قیمت', value: priceLabel },
             ].map(item => (
               <div key={item.label} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 text-center">
                 <p style={{ fontSize:11, marginBottom:2 }} className="text-gray-400 dark:text-gray-500">{item.label}</p>
@@ -138,14 +185,18 @@ export default function StationDetail({ stations, setStations }) {
           <div className="flex items-center gap-2 mb-4">
             <Star size={20} color="#F39C12" fill="#F39C12" />
             <span style={{ fontSize:20, fontWeight:700 }} className="text-gray-900 dark:text-white">{station.rating || '—'}</span>
-            <span style={{ fontSize:13 }} className="text-gray-400">({station.reviews.length} نظر)</span>
+            <span style={{ fontSize:13 }} className="text-gray-400">({station.reviews?.length || 0} نظر)</span>
+            {!station.isActive && (
+              <span style={{ fontSize:11, marginRight:'auto', background:'#f0f0f0', color:'#888', padding:'3px 8px', borderRadius:8 }}>غیرفعال در کاتالوگ</span>
+            )}
           </div>
 
-          {/* دکمه‌های اصلی */}
           <div className="flex gap-2">
-            <button onClick={() => window.open(`https://maps.google.com/?q=${station.lat},${station.lng}`)}
+            <button
+              disabled={station.lat == null || station.lng == null}
+              onClick={() => window.open(`https://maps.google.com/?q=${station.lat},${station.lng}`)}
               className="flex-1 py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
-              style={{ background:'#2ECC71', fontFamily:'Vazirmatn' }}>
+              style={{ background: station.lat == null ? '#95a5a6' : '#2ECC71', fontFamily:'Vazirmatn', opacity: station.lat == null ? 0.7 : 1 }}>
               <Navigation size={16} /> مسیریابی
             </button>
             <button onClick={handleToggleFavorite} disabled={favLoading}
@@ -161,8 +212,21 @@ export default function StationDetail({ stations, setStations }) {
           </div>
         </div>
 
-        {/* ─── بخش گزارش حضور کاربر ──────────────────────────────────────── */}
-        {/* TODO: این بخش بعد از وصل شدن به دیتابیس باید از API وضعیت رو بگیره */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+          <h2 style={{ fontSize:14, fontWeight:700, marginBottom:4 }} className="text-gray-900 dark:text-white">جزئیات ایستگاه</h2>
+          <InfoRow icon={Building2} label="اپراتور" value={station.operator} />
+          <InfoRow icon={MapPin} label="استان / شهر / منطقه" value={locationLabel} />
+          <InfoRow icon={Plug} label="نوع سوکت‌ها" value={station.connectors || station.connector} />
+          <InfoRow icon={Zap} label="پورت AC / DC" value={portsLabel} />
+          <InfoRow icon={Zap} label="حداکثر توان" value={station.maxPower ? `${station.maxPower} kW` : null} />
+          <InfoRow icon={ParkingCircle} label="جای پارک" value={station.parkingSpots} />
+          <InfoRow icon={DollarSign} label="هزینه هر کیلووات" value={priceLabel} />
+          <InfoRow icon={Clock} label="ساعت کاری" value={station.hours} />
+          <InfoRow icon={Phone} label="شماره تماس" value={station.phone} />
+          <InfoRow icon={Calendar} label="آخرین بروزرسانی داده" value={dataUpdated} />
+          <InfoRow icon={Info} label="توضیحات" value={station.description} />
+        </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2 mb-3">
             <Users size={16} className="text-emerald-500" />
@@ -174,7 +238,6 @@ export default function StationDetail({ stations, setStations }) {
             )}
           </div>
 
-          {/* آمار گزارش‌های اخیر */}
           {crowdStats && crowdStats.recent > 0 && (
             <div className="flex gap-2 mb-3">
               <div className="flex-1 rounded-xl p-2.5 text-center" style={{ background:'#e8faf0' }}>
@@ -235,7 +298,6 @@ export default function StationDetail({ stations, setStations }) {
             </div>
           )}
 
-          {/* گزارش ایستگاه خاموش / خراب */}
           {station.status === 'offline' && crowdStep === 'idle' && (
             <div className="mt-2 rounded-xl p-3" style={{ background:'#fef2f2', border:'1px solid #fecaca' }}>
               <p style={{ fontSize:12, color:'#E74C3C', marginBottom:8, fontWeight:600 }}>⚠️ این ایستگاه خاموش اعلام شده</p>
@@ -253,15 +315,12 @@ export default function StationDetail({ stations, setStations }) {
           )}
         </div>
 
-        {/* ─── نظرات ─────────────────────────────────────────────────────── */}
-        {/* TODO: GET /stations/:id/reviews */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex justify-between items-center mb-3">
             <span style={{ fontSize:15, fontWeight:700 }} className="text-gray-900 dark:text-white">نظرات کاربران</span>
           </div>
           {showForm && (
             <div className="mb-4 p-3 rounded-xl" style={{ background:'#f9fdf9', border:'1px solid #d0f0e0' }}>
-              {/* TODO: فرم ثبت نظر — POST /stations/:id/reviews */}
               <input value={reviewName} onChange={e => setReviewName(e.target.value)} placeholder="نام شما (اختیاری)"
                 className="w-full rounded-xl p-2 mb-2 text-sm bg-white border border-gray-200 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" style={{ fontFamily:'Vazirmatn' }} />
               <textarea value={reviewText} onChange={e => setReviewText(e.target.value)} placeholder="نظر خود را بنویسید..." rows={3}
@@ -278,10 +337,10 @@ export default function StationDetail({ stations, setStations }) {
               </div>
             </div>
           )}
-          {station.reviews.length === 0
+          {!station.reviews?.length
             ? <p style={{ fontSize:13, textAlign:'center', padding:'12px 0' }} className="text-gray-400">هنوز نظری ثبت نشده</p>
             : station.reviews.map((r,i) => (
-              <div key={i} className="mb-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700">
+              <div key={r.id || i} className="mb-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700">
                 <div className="flex justify-between items-center mb-1">
                   <span style={{ fontSize:13, fontWeight:600 }} className="text-gray-900 dark:text-white">{r.user || r.userName || r.user_name}</span>
                   <div className="flex gap-0.5">{[1,2,3,4,5].map(n=><Star key={n} size={12} color="#F39C12" fill={n<=r.rating?'#F39C12':'none'} />)}</div>

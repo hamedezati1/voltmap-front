@@ -1,6 +1,6 @@
 /**
  * Access token در حافظه (نه localStorage) — مطابق توصیه‌ی بک‌اند.
- * AuthContext بعد از login/register/refresh این مقدار را ست می‌کند.
+ * AuthContext بعد از verifyOtp/refresh این مقدار را ست می‌کند.
  */
 let accessToken = null
 

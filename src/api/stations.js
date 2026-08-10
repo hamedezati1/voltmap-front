@@ -2,7 +2,7 @@
  * Stations API
  *
  * Endpoints (backend):
- *   GET    /stations              — لیست ایستگاه‌ها (+ query: search, type, status, city)
+ *   GET    /stations              — لیست ایستگاه‌ها (+ query: search, type, status, city, province, operator)
  *   GET    /stations/:id          — جزئیات یک ایستگاه
  *   POST   /stations              — ایجاد (admin)
  *   PATCH  /stations/:id          — ویرایش (admin)
@@ -20,18 +20,22 @@ import { mockStations, crowdReports } from '../mocks/stations'
 /** فقط فیلدهای تعریف‌شده را می‌فرستد (مناسب PATCH جزئی) */
 function toStationPayload(data) {
   const out = {}
-  if (data.name !== undefined) out.name = data.name
-  if (data.city !== undefined) out.city = data.city
-  if (data.address !== undefined) out.address = data.address
-  if (data.lat !== undefined) out.lat = Number(data.lat)
-  if (data.lng !== undefined) out.lng = Number(data.lng)
-  if (data.type !== undefined) out.type = data.type
-  if (data.connector !== undefined) out.connector = data.connector
-  if (data.power !== undefined) out.power = Number(data.power)
-  if (data.ports !== undefined) out.ports = Number(data.ports)
-  if (data.status !== undefined) out.status = data.status
-  if (data.price !== undefined) out.price = data.price
-  if (data.hours !== undefined) out.hours = data.hours
+  const keys = [
+    'code', 'name', 'operator', 'province', 'city', 'district', 'address',
+    'lat', 'lng', 'acPorts', 'dcPorts', 'maxPower', 'connectors', 'parkingSpots',
+    'isFree', 'pricePerKwh', 'isActive', 'isVerified', 'hours', 'phone',
+    'image1', 'image2', 'image3', 'description', 'dataUpdatedAt', 'status',
+    // سازگاری با فرم قدیمی
+    'type', 'connector', 'power', 'ports', 'price', 'image',
+  ]
+  for (const key of keys) {
+    if (data[key] === undefined) continue
+    if (key === 'lat' || key === 'lng' || key === 'power' || key === 'ports' || key === 'acPorts' || key === 'dcPorts') {
+      out[key] = data[key] === null || data[key] === '' ? null : Number(data[key])
+    } else {
+      out[key] = data[key]
+    }
+  }
   return out
 }
 
