@@ -62,9 +62,11 @@ html.dark .mobile-shell {
 }
 /* صفحه نقشه — کل ارتفاع قابل استفاده رو می‌گیره (بدون BottomNav) */
 .routes-page {
-  position: sticky;      /* همون راه‌حلی که کار کرد */
+  position: relative;
   width: 100%;
-  height: calc(100vh - 70px);
+  flex: 1;
+  min-height: 0;
+  height: calc(100dvh - 70px);
   overflow: hidden;
   background: #e5e3df;
 }

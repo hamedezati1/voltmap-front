@@ -23,7 +23,11 @@ const STATUS_COLORS = {
 export function buildPinHTML(station) {
   const status = station.status || "available";
   const c = STATUS_COLORS[status] || STATUS_COLORS.available;
-  const powerNum = station.power || (String(station.maxPower || "").match(/(\d+(?:\.\d+)?)/g) || []).map(Number).sort((a,b)=>b-a)[0];
+  const powerNum =
+    station.power ||
+    (String(station.maxPower || "").match(/(\d+(?:\.\d+)?)/g) || [])
+      .map(Number)
+      .sort((a, b) => b - a)[0];
   const power = powerNum ? `${powerNum}KW` : "—";
 
   return `
@@ -105,13 +109,17 @@ const MapView = forwardRef(function MapView({ stations, onPinClick, onMapInterac
   onMapInteractRef.current = onMapInteract;
 
   // expose flyTo به parent (برای وقتی کاربر شهر رو عوض می‌کنه)
-  useImperativeHandle(ref, () => ({
-    flyTo: (latlng, zoom = 13) => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo(latlng, zoom, { duration: 1.2 })
-      }
-    }
-  }), [])
+  useImperativeHandle(
+    ref,
+    () => ({
+      flyTo: (latlng, zoom = 13) => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo(latlng, zoom, { duration: 1.2 });
+        }
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -154,7 +162,13 @@ const MapView = forwardRef(function MapView({ stations, onPinClick, onMapInterac
     markersRef.current = [];
 
     stations.forEach((s) => {
-      if (s.lat == null || s.lng == null || Number.isNaN(Number(s.lat)) || Number.isNaN(Number(s.lng))) return
+      if (
+        s.lat == null ||
+        s.lng == null ||
+        Number.isNaN(Number(s.lat)) ||
+        Number.isNaN(Number(s.lng))
+      )
+        return;
 
       const c = STATUS_COLORS[s.status] || STATUS_COLORS.available;
 
@@ -173,7 +187,7 @@ const MapView = forwardRef(function MapView({ stations, onPinClick, onMapInterac
         popupAnchor: [0, -72],
       });
 
-      const powerText = s.maxPower || (s.power ? `${s.power}` : "—")
+      const powerText = s.maxPower || (s.power ? `${s.power}` : "—");
       const marker = L.marker([s.lat, s.lng], { icon }).addTo(map).bindPopup(`
           <div style="font-family: Vazirmatn, sans-serif; direction: rtl; min-width: 170px;">
             <div style="font-weight:700; font-size:13px; margin-bottom:4px; color:#1a1a1a;">${s.name}</div>
@@ -198,8 +212,6 @@ const MapView = forwardRef(function MapView({ stations, onPinClick, onMapInterac
   }, [stations, onPinClick]);
 
   return <div ref={mapRef} style={{ height: "100%", width: "100%" }} />;
-}
+});
 
-)
-
-export default MapView
+export default MapView;
