@@ -194,10 +194,12 @@ export default function AddVehicle() {
       </div>
 
       <main className="relative -mt-8 px-4 pb-6">
-        <section className="rounded-3xl mt-10 bg-white p-5 shadow-md dark:bg-gray-800">
+        <section className="mt-10 max-h-[8
+        0vh] overflow-y-auto rounded-3xl bg-white p-5 shadow-md dark:bg-gray-800">
           {loadingCars ? (
             <div className="flex flex-col items-center gap-3 py-10">
               <Loader2 size={28} className="animate-spin text-emerald-500" />
+
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 در حال بارگذاری کاتالوگ...
               </p>
@@ -209,12 +211,15 @@ export default function AddVehicle() {
                 <label className="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
                   نوع خودرو
                 </label>
+
                 <div className="grid grid-cols-3 gap-2">
                   {BODY_TYPES.map((t) => {
                     const active = bodyType === t.value;
+
                     const count = cars.filter(
                       (c) => c.bodyType === t.value,
                     ).length;
+
                     return (
                       <button
                         key={t.value}
@@ -227,6 +232,7 @@ export default function AddVehicle() {
                         }`}
                       >
                         <div className="text-lg leading-none">{t.emoji}</div>
+
                         <div
                           className={`mt-1.5 text-xs font-bold ${
                             active
@@ -236,6 +242,7 @@ export default function AddVehicle() {
                         >
                           {t.label}
                         </div>
+
                         <div className="mt-0.5 text-[10px] text-gray-400">
                           {count} مدل
                         </div>
@@ -250,11 +257,14 @@ export default function AddVehicle() {
                 <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
                   برند
                 </label>
+
                 <select
                   value={brand}
                   disabled={!bodyType}
                   onChange={(e) => selectBrand(e.target.value)}
-                  className={`${inputBase} ${inputErrorClass(!!errors.catalogCarId && !brand)}`}
+                  className={`${inputBase} ${inputErrorClass(
+                    !!errors.catalogCarId && !brand,
+                  )}`}
                   style={{ fontFamily: "Vazirmatn" }}
                 >
                   <option value="">
@@ -262,6 +272,7 @@ export default function AddVehicle() {
                       ? "برند را انتخاب کنید"
                       : "اول نوع خودرو را انتخاب کنید"}
                   </option>
+
                   {brands.map((b) => (
                     <option key={b} value={b}>
                       {b}
@@ -275,6 +286,7 @@ export default function AddVehicle() {
                 <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
                   مدل
                 </label>
+
                 <select
                   value={model}
                   disabled={!brand}
@@ -285,6 +297,7 @@ export default function AddVehicle() {
                   <option value="">
                     {brand ? "مدل را انتخاب کنید" : "اول برند را انتخاب کنید"}
                   </option>
+
                   {models.map((m) => (
                     <option key={m} value={m}>
                       {m}
@@ -299,20 +312,26 @@ export default function AddVehicle() {
                   <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
                     نسخه / تریم
                   </label>
+
                   <select
                     value={catalogCarId}
                     onChange={(e) => {
                       setCatalogCarId(e.target.value);
-                      if (errors.catalogCarId)
+
+                      if (errors.catalogCarId) {
                         setErrors((prev) => ({
                           ...prev,
                           catalogCarId: undefined,
                         }));
+                      }
                     }}
-                    className={`${inputBase} ${inputErrorClass(!!errors.catalogCarId)}`}
+                    className={`${inputBase} ${inputErrorClass(
+                      !!errors.catalogCarId,
+                    )}`}
                     style={{ fontFamily: "Vazirmatn" }}
                   >
                     <option value="">نسخه را انتخاب کنید</option>
+
                     {variants.map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.trim || "نسخه استاندارد"} — باتری {v.batteryKwh} kWh
@@ -331,16 +350,19 @@ export default function AddVehicle() {
                     <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm">
                       <Car size={20} />
                     </div>
+
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2
                           size={14}
                           className="flex-shrink-0 text-emerald-500"
                         />
+
                         <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
                           {carLabel(selectedCar)}
                         </p>
                       </div>
+
                       <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                         {BODY_TYPES.find(
                           (t) => t.value === selectedCar.bodyType,
@@ -348,22 +370,26 @@ export default function AddVehicle() {
                       </p>
                     </div>
                   </div>
+
                   <div className="grid grid-cols-2 gap-2 p-3">
                     <SpecChip
                       icon={<BatteryCharging size={14} />}
                       label="باتری"
                       value={`${selectedCar.batteryKwh} kWh`}
                     />
+
                     <SpecChip
                       icon={<Gauge size={14} />}
                       label="برد"
                       value={`${selectedCar.rangeKm} km`}
                     />
+
                     <SpecChip
                       icon={<Plug size={14} />}
                       label="نازل"
                       value={selectedCar.connector}
                     />
+
                     <SpecChip
                       icon={<Zap size={14} />}
                       label="شارژ DC"
@@ -373,16 +399,19 @@ export default function AddVehicle() {
                 </div>
               )}
 
-              {/* وضعیت فعلی کاربر */}
+              {/* وضعیت فعلی خودرو */}
               <div className="border-t border-gray-100 pt-4 dark:border-gray-700">
                 <p className="mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400">
                   وضعیت فعلی خودرو
                 </p>
+
                 <div className="grid grid-cols-2 gap-3">
+                  {/* درصد باتری */}
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
                       درصد باتری
                     </label>
+
                     <input
                       type="number"
                       min="0"
@@ -390,21 +419,29 @@ export default function AddVehicle() {
                       value={batteryLevel}
                       onChange={(e) => {
                         setBatteryLevel(e.target.value);
-                        if (errors.batteryLevel)
+
+                        if (errors.batteryLevel) {
                           setErrors((prev) => ({
                             ...prev,
                             batteryLevel: undefined,
                           }));
+                        }
                       }}
-                      className={`${inputBase} ${inputErrorClass(!!errors.batteryLevel)}`}
+                      className={`${inputBase} ${inputErrorClass(
+                        !!errors.batteryLevel,
+                      )}`}
                       placeholder="مثلاً 75"
                     />
+
                     <FieldError message={errors.batteryLevel} />
                   </div>
+
+                  {/* سال ساخت */}
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
                       سال ساخت
                     </label>
+
                     <input
                       type="number"
                       min={1370}
@@ -412,17 +449,26 @@ export default function AddVehicle() {
                       value={year}
                       onChange={(e) => {
                         setYear(e.target.value);
-                        if (errors.year)
-                          setErrors((prev) => ({ ...prev, year: undefined }));
+
+                        if (errors.year) {
+                          setErrors((prev) => ({
+                            ...prev,
+                            year: undefined,
+                          }));
+                        }
                       }}
-                      className={`${inputBase} ${inputErrorClass(!!errors.year)}`}
+                      className={`${inputBase} ${inputErrorClass(
+                        !!errors.year,
+                      )}`}
                       placeholder="اختیاری"
                     />
+
                     <FieldError message={errors.year} />
                   </div>
                 </div>
               </div>
 
+              {/* دکمه افزودن */}
               <button
                 onClick={handleSubmit}
                 disabled={saving || !selectedCar}
@@ -434,6 +480,7 @@ export default function AddVehicle() {
                 ) : (
                   <Plus size={18} />
                 )}
+
                 {saving ? "در حال ثبت..." : "افزودن خودرو"}
               </button>
             </div>

@@ -303,14 +303,6 @@ export default function Home({ stations }) {
             onPinClick={(s) => navigate(`/station/${s.id}`)}
             onMapInteract={handleMapInteract}
           />
-          <div className="absolute left-3 bottom-14 z-[1000] flex flex-col gap-2">
-            <button className="map-control-btn">
-              <MapPin size={18} color="#2ECC71" />
-            </button>
-            <button className="map-control-btn">
-              <Navigation2 size={18} color="#555" />
-            </button>
-          </div>
           {isMapExpanded && (
             <button
               onClick={() => setSnap("balanced")}
