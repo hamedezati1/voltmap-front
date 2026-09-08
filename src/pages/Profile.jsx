@@ -393,7 +393,7 @@ export default function Profile() {
                   Icon: HelpCircle,
                   label: "راهنما و پشتیبانی",
                   color: "#555",
-                  action: null,
+                  action: () => navigate("/help"),
                 },
                 {
                   Icon: LogOut,

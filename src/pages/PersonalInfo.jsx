@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, User, Mail, Phone, Save, Loader2, Check } from "lucide-react";
+import {
+  ArrowRight,
+  User,
+  Mail,
+  Phone,
+  Save,
+  Loader2,
+  Check,
+} from "lucide-react";
 import { updateProfile } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { FieldError } from "../components/FieldError";
@@ -50,7 +58,10 @@ export default function PersonalInfo() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" style={{ paddingBottom: 80 }}>
+    <div
+      className="min-h-screen bg-gray-50 dark:bg-gray-900"
+      style={{ paddingBottom: 80 }}
+    >
       <div className="relative overflow-hidden">
         <div
           className="absolute inset-0"
@@ -66,11 +77,13 @@ export default function PersonalInfo() {
           >
             <ArrowRight size={20} color="#fff" />
           </button>
-          <span className="text-base font-semibold text-white">اطلاعات شخصی</span>
+          <span className="text-base font-semibold text-white">
+            اطلاعات شخصی
+          </span>
         </div>
       </div>
 
-      <main className="relative -mt-10 px-4 pb-6">
+      <main className="relative mt-5  px-4 pb-6">
         <section className="rounded-3xl bg-white p-5 shadow-md dark:bg-gray-800">
           <div className="space-y-4">
             <div>
@@ -87,7 +100,9 @@ export default function PersonalInfo() {
                 maxLength={100}
               />
               <FieldError message={errors.name} />
-              <p className="mt-1 text-[11px] text-gray-400">بین ۲ تا ۱۰۰ کاراکتر</p>
+              <p className="mt-1 text-[11px] text-gray-400">
+                بین ۲ تا ۱۰۰ کاراکتر
+              </p>
             </div>
 
             <div>

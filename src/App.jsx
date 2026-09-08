@@ -8,6 +8,9 @@ import Trip from "./pages/trip";
 import GoldPaymentPlaceholder from "./pages/trip/GoldPaymentPlaceholder";
 import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
+import MyStation from "./pages/MyStation";
+import Contact from "./pages/Contact";
+import Help from "./pages/Help";
 import Splash from "./pages/Splash";
 import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
@@ -118,6 +121,9 @@ export default function App() {
           <Route path="/trip" element={<Trip />} />
           <Route path="/trip/upgrade" element={<GoldPaymentPlaceholder />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/my-station" element={<MyStation />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/personal-info" element={<PersonalInfo />} />
           <Route path="/vehicles" element={<Vehicles />} />

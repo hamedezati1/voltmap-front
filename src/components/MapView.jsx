@@ -1,6 +1,11 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import {
+  buildViewportItems,
+  buildClusterHTML,
+  clusterIconSize,
+} from "../lib/mapMarkers";
 
 /**
  * رنگ پین بر اساس وضعیت ایستگاه:
@@ -98,14 +103,80 @@ export function buildPinHTML(station) {
   `;
 }
 
+const STATUS_LABELS = {
+  available: "خالی",
+  busy: "شلوغ",
+  waiting: "در انتظار",
+  offline: "خاموش",
+};
+
+function stationPopupHTML(station) {
+  const c = STATUS_COLORS[station.status] || STATUS_COLORS.available;
+  const powerText = station.maxPower || (station.power ? `${station.power}` : "—");
+  return `
+    <div style="font-family: Vazirmatn, sans-serif; direction: rtl; min-width: 170px;">
+      <div style="font-weight:700; font-size:13px; margin-bottom:4px; color:#1a1a1a;">${station.name}</div>
+      <div style="font-size:12px; color:#888; margin-bottom:4px;">${[station.operator, station.city].filter(Boolean).join(" · ")}</div>
+      <div style="font-size:11px; color:#aaa; margin-bottom:8px;">${station.address || ""}</div>
+      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        <span style="font-size:11px; background:${c.main}22; color:${c.main}; padding:3px 10px; border-radius:12px; font-weight:600;">
+          ${STATUS_LABELS[station.status] || "—"}
+        </span>
+        <span style="font-size:11px; color:#555;">${powerText}kW · ${station.type}</span>
+        <span style="font-size:11px; color:#888;">${station.connector || ""}</span>
+      </div>
+    </div>
+  `;
+}
+
+function addViewportMarkers(map, layer, stations, onStationClick) {
+  layer.clearLayers();
+  const items = buildViewportItems(stations, map);
+
+  for (const item of items) {
+    if (item.type === "cluster") {
+      const size = clusterIconSize(item.count);
+      const icon = L.divIcon({
+        className: "map-cluster-icon",
+        html: buildClusterHTML(item.count),
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+      });
+      L.marker([item.lat, item.lng], {
+        icon,
+        interactive: false,
+        keyboard: false,
+      }).addTo(layer);
+      continue;
+    }
+
+    const station = item.station;
+    const icon = L.divIcon({
+      className: "",
+      html: buildPinHTML(station),
+      iconSize: [60, 72],
+      iconAnchor: [30, 72],
+      popupAnchor: [0, -72],
+    });
+    const marker = L.marker([station.lat, station.lng], { icon }).addTo(layer);
+    marker.bindPopup(stationPopupHTML(station));
+    marker.on("click", () => onStationClick?.(station));
+  }
+}
+
 // forwardRef برای اینکه Home بتونه flyTo رو از بیرون صدا بزنه
 // TODO: وقتی به دیتابیس وصل شد، ref همچنان قابل استفاده‌ست
 const MapView = forwardRef(function MapView({ stations, onPinClick, onMapInteract }, ref) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
+  const layerRef = useRef(null);
+  const syncRef = useRef(() => {});
+  const stationsRef = useRef(stations);
+  const onPinClickRef = useRef(onPinClick);
   const onMapInteractRef = useRef(onMapInteract);
 
+  stationsRef.current = stations;
+  onPinClickRef.current = onPinClick;
   onMapInteractRef.current = onMapInteract;
 
   // expose flyTo به parent (برای وقتی کاربر شهر رو عوض می‌کنه)
@@ -134,82 +205,60 @@ const MapView = forwardRef(function MapView({ stations, onPinClick, onMapInterac
       attribution: "© OpenStreetMap",
     }).addTo(map);
 
+    const layer = L.layerGroup().addTo(map);
+    layerRef.current = layer;
+
+    const sync = () => {
+      addViewportMarkers(
+        map,
+        layer,
+        stationsRef.current || [],
+        (station) => onPinClickRef.current?.(station),
+      );
+    };
+    syncRef.current = sync;
+
     const handleInteract = () => onMapInteractRef.current?.();
+    let viewTimer;
+    const handleViewChange = () => {
+      clearTimeout(viewTimer);
+      viewTimer = setTimeout(sync, 60);
+    };
+
     map.on("movestart", handleInteract);
     map.on("zoomstart", handleInteract);
+    map.on("moveend", handleViewChange);
+    map.on("zoomend", handleViewChange);
 
     mapInstanceRef.current = map;
-    requestAnimationFrame(() => map.invalidateSize());
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+      sync();
+    });
 
-    const observer = new ResizeObserver(() => map.invalidateSize());
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+      handleViewChange();
+    });
     observer.observe(mapRef.current);
 
     return () => {
+      clearTimeout(viewTimer);
       map.off("movestart", handleInteract);
       map.off("zoomstart", handleInteract);
+      map.off("moveend", handleViewChange);
+      map.off("zoomend", handleViewChange);
       observer.disconnect();
       map.remove();
       mapInstanceRef.current = null;
+      layerRef.current = null;
+      syncRef.current = () => {};
     };
   }, []);
 
   useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    // حذف مارکرهای قبلی
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    stations.forEach((s) => {
-      if (
-        s.lat == null ||
-        s.lng == null ||
-        Number.isNaN(Number(s.lat)) ||
-        Number.isNaN(Number(s.lng))
-      )
-        return;
-
-      const c = STATUS_COLORS[s.status] || STATUS_COLORS.available;
-
-      const statusLabels = {
-        available: "خالی",
-        busy: "شلوغ",
-        waiting: "در انتظار",
-        offline: "خاموش",
-      };
-
-      const icon = L.divIcon({
-        className: "",
-        html: buildPinHTML(s),
-        iconSize: [60, 72],
-        iconAnchor: [30, 72],
-        popupAnchor: [0, -72],
-      });
-
-      const powerText = s.maxPower || (s.power ? `${s.power}` : "—");
-      const marker = L.marker([s.lat, s.lng], { icon }).addTo(map).bindPopup(`
-          <div style="font-family: Vazirmatn, sans-serif; direction: rtl; min-width: 170px;">
-            <div style="font-weight:700; font-size:13px; margin-bottom:4px; color:#1a1a1a;">${s.name}</div>
-            <div style="font-size:12px; color:#888; margin-bottom:4px;">${[s.operator, s.city].filter(Boolean).join(" · ")}</div>
-            <div style="font-size:11px; color:#aaa; margin-bottom:8px;">${s.address || ""}</div>
-            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-              <span style="font-size:11px; background:${c.main}22; color:${c.main}; padding:3px 10px; border-radius:12px; font-weight:600;">
-                ${statusLabels[s.status] || "—"}
-              </span>
-              <span style="font-size:11px; color:#555;">${powerText}kW · ${s.type}</span>
-              <span style="font-size:11px; color:#888;">${s.connector || ""}</span>
-            </div>
-          </div>
-        `);
-
-      marker.on("click", () => {
-        if (onPinClick) onPinClick(s);
-      });
-
-      markersRef.current.push(marker);
-    });
-  }, [stations, onPinClick]);
+    syncRef.current();
+  }, [stations]);
 
   return <div ref={mapRef} style={{ height: "100%", width: "100%" }} />;
 });

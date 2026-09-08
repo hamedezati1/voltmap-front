@@ -28,6 +28,11 @@ import {
   isFavoriteStation,
 } from "../api";
 import { buildPinHTML } from "../components/MapView";
+import {
+  buildViewportItems,
+  buildClusterHTML,
+  clusterIconSize,
+} from "../lib/mapMarkers";
 
 // ─── الگوریتم هاورساین برای محاسبه فاصله ──────────────────────────────────
 function haversine(lat1, lon1, lat2, lon2) {
@@ -99,7 +104,9 @@ export default function RoutesPage() {
   const navigate = useNavigate();
   const mapRef = useRef(null);
   const mapInst = useRef(null);
-  const markersRef = useRef([]);
+  const markersLayerRef = useRef(null);
+  const syncMarkersRef = useRef(() => {});
+  const filteredRef = useRef([]);
   const routeRef = useRef(null);
   const userMarker = useRef(null);
 
@@ -150,6 +157,8 @@ export default function RoutesPage() {
     setFiltered(result);
   }, [stations, filterConn, filterType, filterFast]);
 
+  filteredRef.current = filtered;
+
   // ─── اولیه‌سازی نقشه ────────────────────────────────────────────────────
   useEffect(() => {
     const el = mapRef.current;
@@ -163,9 +172,62 @@ export default function RoutesPage() {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap",
     }).addTo(map);
+
+    const layer = L.layerGroup().addTo(map);
+    markersLayerRef.current = layer;
     mapInst.current = map;
 
-    const resize = () => map.invalidateSize();
+    const sync = () => {
+      const currentMap = mapInst.current;
+      const currentLayer = markersLayerRef.current;
+      if (!currentMap || !currentLayer) return;
+      currentLayer.clearLayers();
+      const items = buildViewportItems(filteredRef.current || [], currentMap);
+      for (const item of items) {
+        if (item.type === "cluster") {
+          const size = clusterIconSize(item.count);
+          const icon = L.divIcon({
+            className: "map-cluster-icon",
+            html: buildClusterHTML(item.count),
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+          });
+          L.marker([item.lat, item.lng], {
+            icon,
+            interactive: false,
+            keyboard: false,
+          }).addTo(currentLayer);
+          continue;
+        }
+        const s = item.station;
+        const icon = L.divIcon({
+          className: "",
+          html: buildPinHTML(s),
+          iconSize: [52, 64],
+          iconAnchor: [26, 64],
+          popupAnchor: [0, -64],
+        });
+        const marker = L.marker([s.lat, s.lng], { icon }).addTo(currentLayer);
+        marker.on("click", () => {
+          setSelectedStation(s);
+          isFavoriteStation(s.id).then(setIsFav);
+        });
+      }
+    };
+    syncMarkersRef.current = sync;
+
+    let viewTimer;
+    const handleViewChange = () => {
+      clearTimeout(viewTimer);
+      viewTimer = setTimeout(sync, 60);
+    };
+    map.on("moveend", handleViewChange);
+    map.on("zoomend", handleViewChange);
+
+    const resize = () => {
+      map.invalidateSize();
+      sync();
+    };
     requestAnimationFrame(resize);
     const t = setTimeout(resize, 150);
     const obs = new ResizeObserver(resize);
@@ -173,35 +235,20 @@ export default function RoutesPage() {
 
     return () => {
       clearTimeout(t);
+      clearTimeout(viewTimer);
+      map.off("moveend", handleViewChange);
+      map.off("zoomend", handleViewChange);
       obs.disconnect();
       map.remove();
       mapInst.current = null;
+      markersLayerRef.current = null;
+      syncMarkersRef.current = () => {};
     };
   }, []);
 
-  // ─── مارکرهای ایستگاه ────────────────────────────────────────────────────
+  // ─── مارکرهای ایستگاه (فقط نمای فعلی + خوشه در زوم پایین) ──────────────
   useEffect(() => {
-    const map = mapInst.current;
-    if (!map) return;
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-    filtered.forEach((s) => {
-      if (s.lat == null || s.lng == null) return;
-      const icon = L.divIcon({
-        className: "",
-        html: buildPinHTML(s),
-        iconSize: [52, 64],
-        iconAnchor: [26, 64],
-        popupAnchor: [0, -64],
-      });
-      const marker = L.marker([s.lat, s.lng], { icon }).addTo(map);
-      // کلیک روی ایستگاه → نمایش اسلاید (نه popup لیفلت)
-      marker.on("click", () => {
-        setSelectedStation(s);
-        isFavoriteStation(s.id).then(setIsFav);
-      });
-      markersRef.current.push(marker);
-    });
+    syncMarkersRef.current();
   }, [filtered]);
 
   // ─── موقعیت‌یابی و رسم مسیر ─────────────────────────────────────────────
