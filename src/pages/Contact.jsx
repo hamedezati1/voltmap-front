@@ -170,9 +170,7 @@ export default function Contact() {
               نماد اعتماد الکترونیکی
             </h2>
           </div>
-          <p className="mb-4 text-xs leading-6 text-gray-400 dark:text-gray-500">
-            پس از دریافت اینماد، تصویر یا کد رسمی در این بخش نمایش داده می‌شود.
-          </p>
+
           {/* e namad */}
           <a
             referrerpolicy="origin"
