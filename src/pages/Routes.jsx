@@ -699,45 +699,9 @@ export default function RoutesPage() {
           display: "flex",
           flexDirection: "column",
           gap: 8,
+          marginBottom:40
         }}
       >
-        {/* دکمه مسیریابی Google Maps وقتی ایستگاه پیشنهادی داریم */}
-        {routeInfo?.first && (
-          <button
-            onClick={() =>
-              window.open(
-                `https://maps.google.com/?q=${routeInfo.first.lat},${routeInfo.first.lng}&navigate=yes`,
-              )
-            }
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: "#fff",
-              border: "none",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
-              cursor: "pointer",
-              gap: 2,
-            }}
-          >
-            <Navigation size={17} color="#3498DB" />
-            <span
-              style={{
-                fontSize: 8,
-                color: "#3498DB",
-                fontFamily: "Vazirmatn",
-                fontWeight: 600,
-              }}
-            >
-              {" "}
-              مسیریابی سریع{" "}
-            </span>
-          </button>
-        )}
         <button
           onClick={handleLocate}
           disabled={locating || routing}
@@ -758,7 +722,7 @@ export default function RoutesPage() {
             <Loader2
               size={22}
               color="#fff"
-              style={{ animation: "spin 1s linear infinite" }}
+              style={{ animation: "spin 1s linear infinite", }}
             />
           ) : (
             <Locate size={22} color="#fff" />

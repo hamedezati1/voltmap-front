@@ -196,20 +196,24 @@ export default function Profile() {
             </section>
 
             {/* Favorites */}
+
             <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-800">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Heart size={18} className="text-red-400" fill="#f87171" />
+
                   <h2 className="text-sm font-bold text-gray-900 dark:text-white">
                     ایستگاه‌های مورد علاقه
                   </h2>
                 </div>
+
                 <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                   {favoriteStations.length} مورد
                 </span>
               </div>
 
-              <div className="space-y-2">
+              {/* Favorites List */}
+              <div className="max-h-[210px] space-y-2 overflow-y-auto pr-1">
                 {favoritesLoading && (
                   <div className="flex items-center justify-center py-6">
                     <Loader2
@@ -218,6 +222,7 @@ export default function Profile() {
                     />
                   </div>
                 )}
+
                 {!favoritesLoading &&
                   favoriteStations.map((station) => (
                     <button
@@ -229,15 +234,18 @@ export default function Profile() {
                         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-800">
                           <MapPin size={16} className="text-emerald-500" />
                         </div>
+
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
                             {station.name}
                           </p>
+
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {station.city}
                           </p>
                         </div>
                       </div>
+
                       <div className="mr-2 flex flex-shrink-0 items-center gap-2">
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -248,16 +256,19 @@ export default function Profile() {
                         >
                           {station.status === "available" ? "آزاد" : "شلوغ"}
                         </span>
+
                         <ChevronLeft size={16} className="text-gray-300" />
                       </div>
                     </button>
                   ))}
+
                 {!favoritesLoading && favoriteStations.length === 0 && (
                   <div className="flex flex-col items-center gap-2 py-8 text-center">
                     <Heart
                       size={32}
                       className="text-gray-200 dark:text-gray-700"
                     />
+
                     <p className="text-sm text-gray-400 dark:text-gray-500">
                       هنوز ایستگاه مورد علاقه‌ای ثبت نشده
                     </p>
@@ -375,24 +386,21 @@ export default function Profile() {
             </section>
 
             {/* Quick actions */}
-            <section className="mt-4 rounded-2xl bg-white shadow-sm dark:bg-gray-800 overflow-visible">
+            <section className="mt-4 rounded-2xl bg-white shadow-sm dark:bg-gray-800 dark:text-white overflow-visible">
               {[
                 {
                   Icon: CircleUserRound,
                   label: "اطلاعات شخصی",
-                  color: "#555",
                   action: () => navigate("/profile/personal-info"),
                 },
                 {
                   Icon: Settings,
                   label: "تنظیمات حساب",
-                  color: "#555",
                   action: null,
                 },
                 {
                   Icon: HelpCircle,
                   label: "راهنما و پشتیبانی",
-                  color: "#555",
                   action: () => navigate("/help"),
                 },
                 {

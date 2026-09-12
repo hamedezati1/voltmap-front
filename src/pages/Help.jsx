@@ -56,18 +56,18 @@ export default function Help() {
   const [open, setOpen] = useState(0);
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 dark:bg-gray-900"
-      style={{ paddingBottom: 80 }}
-    >
-      <div className="relative overflow-hidden">
+    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <div className="relative flex-shrink-0 overflow-hidden">
         <div
           className="absolute inset-0"
           style={{
-            background: "linear-gradient(135deg, #2ECC71 0%, #1a8a40 100%)",
+            background:
+              "linear-gradient(135deg, #2ECC71 0%, #1a8a40 100%)",
             height: 110,
           }}
         />
+
         <div className="relative flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => navigate(-1)}
@@ -76,40 +76,55 @@ export default function Help() {
           >
             <ArrowRight size={20} color="#fff" />
           </button>
+
           <span className="text-base font-semibold text-white">
             راهنما و پشتیبانی
           </span>
         </div>
       </div>
 
-      <main className="relative mt-5 px-4 pb-6">
+      {/* Scrollable Content */}
+      <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-5">
+        {/* توضیحات */}
         <section className="rounded-3xl bg-white p-5 shadow-md dark:bg-gray-800">
           <div className="flex items-center gap-2">
-            <HelpCircle size={18} className="text-emerald-500" />
+            <HelpCircle
+              size={18}
+              className="text-emerald-500"
+            />
+
             <h1 className="text-base font-bold text-gray-900 dark:text-white">
               چطور از ولت‌مپ استفاده کنیم؟
             </h1>
           </div>
+
           <p className="mt-2 text-sm leading-7 text-gray-500 dark:text-gray-400">
-            روی هر موضوع بزنید تا توضیح کامل را ببینید. اگر پاسخ‌تان را پیدا
-            نکردید، از صفحه ارتباط با ما با پشتیبانی در تماس باشید.
+            روی هر موضوع بزنید تا توضیح کامل را ببینید. اگر
+            پاسخ‌تان را پیدا نکردید، از صفحه ارتباط با ما با
+            پشتیبانی در تماس باشید.
           </p>
         </section>
 
+        {/* لیست راهنما */}
         <section className="mt-4 overflow-hidden rounded-3xl bg-white shadow-sm dark:bg-gray-800">
           {SECTIONS.map(({ Icon, title, body }, i) => {
             const isOpen = open === i;
+
             return (
               <div
                 key={title}
                 style={{
                   borderBottom:
-                    i < SECTIONS.length - 1 ? "1px solid #f5f5f5" : "none",
+                    i < SECTIONS.length - 1
+                      ? "1px solid #f5f5f5"
+                      : "none",
                 }}
               >
                 <button
                   type="button"
-                  onClick={() => setOpen(isOpen ? -1 : i)}
+                  onClick={() =>
+                    setOpen(isOpen ? -1 : i)
+                  }
                   className="flex w-full items-center gap-3 px-4 py-3.5 text-right"
                   aria-expanded={isOpen}
                 >
@@ -119,14 +134,19 @@ export default function Help() {
                       className="text-emerald-600 dark:text-emerald-400"
                     />
                   </div>
+
                   <span className="flex-1 text-sm font-semibold text-gray-900 dark:text-white">
                     {title}
                   </span>
+
                   <ChevronDown
                     size={16}
-                    className={`text-gray-300 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    className={`text-gray-300 transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
+
                 {isOpen && (
                   <p className="px-4 pb-4 pr-[3.75rem] text-sm leading-7 text-gray-500 dark:text-gray-400">
                     {body}
@@ -137,6 +157,7 @@ export default function Help() {
           })}
         </section>
 
+        {/* ارتباط با پشتیبانی */}
         <button
           type="button"
           onClick={() => navigate("/contact")}
