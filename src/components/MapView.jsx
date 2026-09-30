@@ -5,6 +5,7 @@ import {
   buildViewportItems,
   buildClusterHTML,
   clusterIconSize,
+  isOwnerStation,
 } from "../lib/mapMarkers";
 
 /**
@@ -21,13 +22,19 @@ const STATUS_COLORS = {
   offline: { main: "#57606f", dark: "#2f3542", badge: "#2f3542" },
 };
 
+/** پین ایستگاه کاربران: طلایی، جدا از رنگ وضعیت ایستگاه‌های عمومی */
+const OWNER_COLORS = { main: "#F0B429", dark: "#C4840A", badge: "#8C5E08" };
+
 /**
  * ساخت HTML پین EV به صورت SVG خالص
  * شامل: بدنه قطره‌ای، آیکون شارژر، نمایش توان در پایین
  */
 export function buildPinHTML(station) {
   const status = station.status || "available";
-  const c = STATUS_COLORS[status] || STATUS_COLORS.available;
+  const owner = isOwnerStation(station);
+  const c = owner
+    ? OWNER_COLORS
+    : STATUS_COLORS[status] || STATUS_COLORS.available;
   const powerNum =
     station.power ||
     (String(station.maxPower || "").match(/(\d+(?:\.\d+)?)/g) || [])
@@ -64,7 +71,10 @@ export function buildPinHTML(station) {
 
 
 
-<g transform="translate(-2 -2)">
+${
+  owner
+    ? `<path d="M26 14.5 L16.5 23 H19.2 V32 H23.4 V26.2 H28.6 V32 H32.8 V23 H35.5 Z" fill="white"/>`
+    : `<g transform="translate(-2 -2)">
   <rect
     x="22"
     y="16"
@@ -87,7 +97,8 @@ export function buildPinHTML(station) {
    "
    fill="${c.main}"
   />
-</g>
+</g>`
+}
 
         <!-- نوار توان در پایین -->
         <rect x="9" y="38" width="34" height="13" rx="6.5"
@@ -111,7 +122,10 @@ const STATUS_LABELS = {
 };
 
 function stationPopupHTML(station) {
-  const c = STATUS_COLORS[station.status] || STATUS_COLORS.available;
+  const owner = isOwnerStation(station);
+  const c = owner
+    ? OWNER_COLORS
+    : STATUS_COLORS[station.status] || STATUS_COLORS.available;
   const powerText = station.maxPower || (station.power ? `${station.power}` : "—");
   return `
     <div style="font-family: Vazirmatn, sans-serif; direction: rtl; min-width: 170px;">
@@ -119,6 +133,11 @@ function stationPopupHTML(station) {
       <div style="font-size:12px; color:#888; margin-bottom:4px;">${[station.operator, station.city].filter(Boolean).join(" · ")}</div>
       <div style="font-size:11px; color:#aaa; margin-bottom:8px;">${station.address || ""}</div>
       <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        ${
+          owner
+            ? `<span style="font-size:11px; background:#FFF6E0; color:#8C5E08; padding:3px 10px; border-radius:12px; font-weight:700;">ایستگاه کاربران</span>`
+            : ""
+        }
         <span style="font-size:11px; background:${c.main}22; color:${c.main}; padding:3px 10px; border-radius:12px; font-weight:600;">
           ${STATUS_LABELS[station.status] || "—"}
         </span>

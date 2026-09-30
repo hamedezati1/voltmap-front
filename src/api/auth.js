@@ -9,13 +9,14 @@
  *   POST /auth/logout
  *   GET  /auth/me
  */
-import { apiClient, USE_MOCK, refreshAccessToken } from './client'
-import { setAccessToken, clearAccessToken } from './tokenStore'
+import { apiClient, ApiError, USE_MOCK, refreshAccessToken } from './client'
+import { getAccessToken, setAccessToken, getStoredUser, setStoredUser, clearStoredSession } from './tokenStore'
 import { notifyApiError } from './toastMiddleware'
 import { mockAuth } from '../mocks/auth'
 
 function applySession(session) {
   if (session?.token) setAccessToken(session.token)
+  if (session?.user) setStoredUser(session.user)
   return session
 }
 
@@ -66,27 +67,49 @@ export async function logout({ showToast = true } = {}) {
       showToast,
     })
   } finally {
-    clearAccessToken()
+    clearStoredSession()
   }
 }
 
 export async function getSession() {
   if (USE_MOCK) return mockAuth.getSession()
 
+  const token = getAccessToken()
+  const storedUser = getStoredUser()
+
+  // توکن ذخیره‌شده هنوز معتبر است → refresh نزن تا نشست بی‌دلیل revoke نشود.
+  if (token) {
+    try {
+      const user = await fetchCurrentUser({ showToast: false, skipRefresh: true })
+      if (user) {
+        setStoredUser(user)
+        return { token: getAccessToken(), user }
+      }
+    } catch (err) {
+      const unauthorized = err instanceof ApiError && err.status === 401
+      if (!unauthorized && storedUser) return { token, user: storedUser }
+    }
+  }
+
   try {
     const session = await refreshAccessToken({ showToast: false })
     return applySession(session)
-  } catch {
-    clearAccessToken()
+  } catch (err) {
+    const unauthorized = err instanceof ApiError && (err.status === 401 || err.status === 403)
+    if (unauthorized) {
+      clearStoredSession()
+      return null
+    }
+    if (token && storedUser) return { token, user: storedUser }
     return null
   }
 }
 
-export async function fetchCurrentUser({ showToast = true } = {}) {
+export async function fetchCurrentUser({ showToast = true, skipRefresh = false } = {}) {
   if (USE_MOCK) {
     const session = mockAuth.getSession()
     return session?.user ?? null
   }
-  const data = await apiClient('/auth/me', { showToast })
+  const data = await apiClient('/auth/me', { showToast, skipRefresh })
   return data?.user ?? null
 }

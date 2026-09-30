@@ -23,7 +23,7 @@ function toStationPayload(data) {
   const keys = [
     'code', 'name', 'operator', 'province', 'city', 'district', 'address',
     'lat', 'lng', 'acPorts', 'dcPorts', 'maxPower', 'connectors', 'parkingSpots',
-    'isFree', 'pricePerKwh', 'isActive', 'isVerified', 'hours', 'phone',
+    'isFree', 'pricePerKwh', 'isActive', 'isVerified', 'isOwnerStation', 'hours', 'phone',
     'image1', 'image2', 'image3', 'description', 'dataUpdatedAt', 'status',
     // سازگاری با فرم قدیمی
     'type', 'connector', 'power', 'ports', 'price', 'image',

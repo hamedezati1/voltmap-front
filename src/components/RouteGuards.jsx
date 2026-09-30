@@ -20,6 +20,27 @@ export function RequireAuth({ children }) {
   return children
 }
 
+/** پنل ادمین — کاربر عادی و مهمان این صفحه را نمی‌بینند */
+export function RequireAdmin({ children }) {
+  const { isAuthenticated, loading, user } = useAuth()
+  const location = useLocation()
+
+  if (loading) return <AppLoading />
+
+  if (!isAuthenticated) {
+    if (!isOnboardingDone()) {
+      return <Navigate to="/splash" state={{ from: location }} replace />
+    }
+    return <Navigate to="/auth" state={{ from: location }} replace />
+  }
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
+
+  return children
+}
+
 /** مسیرهای مهمان — فقط برای کاربر لاگین‌نشده */
 export function GuestRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()

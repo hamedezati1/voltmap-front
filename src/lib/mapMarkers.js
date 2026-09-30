@@ -7,6 +7,11 @@
 
 export const INDIVIDUAL_MIN_ZOOM = 14;
 
+/** ایستگاهی که کاربر ثبت کرده و ادمین تأیید کرده است. */
+export function isOwnerStation(station) {
+  return Boolean(station?.isOwnerStation || station?.is_owner_station);
+}
+
 export function isValidStationLatLng(station) {
   if (!station) return false;
   const lat = Number(station.lat);

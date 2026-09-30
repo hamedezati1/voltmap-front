@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { OtpAuthForm } from '../components/auth/AuthForms'
 import VoltMap from '../assets/svg/volt-map.png'
 
 export default function Auth() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') === 'register' ? 'register' : 'login'
   const [tab, setTab] = useState(initialTab)
@@ -29,7 +30,12 @@ export default function Auth() {
     setLoading(true)
     setError('')
     try {
-      await verifyOtp(payload)
+      const session = await verifyOtp(payload)
+      const from = location.state?.from?.pathname || ''
+      if (from.startsWith('/admin') && session?.user?.role === 'admin') {
+        navigate(from, { replace: true })
+        return
+      }
       navigate('/', { replace: true })
     } catch {
       // toast middleware

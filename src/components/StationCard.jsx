@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Zap, Navigation, Plug, PowerOff, Building2 } from 'lucide-react'
+import { MapPin, Zap, Navigation, Plug, PowerOff, Building2, Home } from 'lucide-react'
+import { isOwnerStation } from '../lib/mapMarkers'
 
 const typeColors = {
   DC: { bg:'#E6F1FB', text:'#0C447C' },
@@ -77,6 +78,11 @@ export default function StationCard({ station }) {
           )}
           {station.isVerified && (
             <span style={{ fontSize:11, background:'#E6F1FB', color:'#0C447C', borderRadius:8, padding:'2px 8px' }}>تأییدشده</span>
+          )}
+          {isOwnerStation(station) && (
+            <span style={{ fontSize:11, background:'#FFF6E0', color:'#8C5E08', borderRadius:8, padding:'2px 8px', display:'flex', alignItems:'center', gap:3 }}>
+              <Home size={10} /> ایستگاه کاربران
+            </span>
           )}
           {station.lat != null && station.lng != null && (
             <span style={{ fontSize:11, color:'#2ECC71', marginRight:'auto', display:'flex', alignItems:'center', gap:3 }}>

@@ -161,7 +161,7 @@ export default function Profile() {
             </section>
 
             {/* Stats */}
-            <section className="mt-4 grid grid-cols-2 gap-3">
+            {/* <section className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-800">
                 <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
                   <Zap
@@ -193,7 +193,7 @@ export default function Profile() {
                   </span>
                 </p>
               </div>
-            </section>
+            </section> */}
 
             {/* Favorites */}
 

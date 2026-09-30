@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { version } from "../../package.json";
 
 const MENU_ITEMS = [
   { Icon: User, label: "پروفایل", path: "/profile" },
@@ -211,6 +212,11 @@ export default function SideMenu({ open, onClose }) {
             </span>
           </button>
         </nav>
+        <div className="mx-3 my-2 border-t border-gray-100 dark:border-gray-700 p-3 flex items-center justify-center">
+          <span className=" font-medium text-gray-700 dark:text-gray-100 text-center  p-2 ">
+            {version}
+          </span>
+        </div>
       </aside>
     </div>,
     host,

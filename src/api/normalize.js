@@ -63,6 +63,7 @@ export function normalizeStation(station) {
     pricePerKwh,
     isActive: station.isActive !== false && station.is_active !== 0 && station.isActive !== 0,
     isVerified: Boolean(station.isVerified ?? station.is_verified),
+    isOwnerStation: Boolean(station.isOwnerStation ?? station.is_owner_station),
     hours: station.hours ?? null,
     phone: station.phone ?? null,
     image1,

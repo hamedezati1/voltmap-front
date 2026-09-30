@@ -131,19 +131,19 @@ export default function StationReportForm({
           <CheckCircle size={32} className="text-emerald-500" />
         </div>
         <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">
-          گزارش ثبت شد!
+          درخواست ثبت شد
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 leading-6 mb-6">
-          ایستگاه گزارش‌شده مورد بررسی قرار می‌گیرد.
+          ایستگاه شما برای بررسی به ادمین ارسال شد.
           <br />
-          با تشکر از گزارش شما 🙏
+          بعد از تأیید، روی نقشه با پین طلایی و آیکون خانه دیده می‌شود.
         </p>
         <button
           onClick={onClose || resetForm}
           className="px-6 py-2.5 rounded-xl text-white text-sm font-semibold"
           style={{ background: "#2ECC71" }}
         >
-          {onClose ? "بازگشت" : "ثبت گزارش دیگر"}
+          {onClose ? "بازگشت" : "ثبت ایستگاه دیگر"}
         </button>
       </div>
     );
@@ -445,7 +445,7 @@ export default function StationReportForm({
           </>
         ) : (
           <>
-            <CheckCircle size={16} /> ثبت گزارش
+            <CheckCircle size={16} /> ثبت ایستگاه
           </>
         )}
       </button>

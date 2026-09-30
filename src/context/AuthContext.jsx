@@ -5,7 +5,7 @@ import {
   logout as apiLogout,
   getSession,
 } from '../api/auth'
-import { setAccessToken, clearAccessToken } from '../api/tokenStore'
+import { setAccessToken, clearStoredSession } from '../api/tokenStore'
 
 const AuthContext = createContext(null)
 
@@ -22,11 +22,11 @@ export function AuthProvider({ children }) {
           setToken(session.token)
           setAccessToken(session.token)
         } else {
-          clearAccessToken()
+          clearStoredSession()
         }
       })
       .catch(() => {
-        clearAccessToken()
+        clearStoredSession()
       })
       .finally(() => setLoading(false))
   }, [])
@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
     } finally {
       setUser(null)
       setToken(null)
-      clearAccessToken()
+      clearStoredSession()
     }
   }, [])
 

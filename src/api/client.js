@@ -1,5 +1,5 @@
 import { API_BASE_URL } from './config'
-import { getAccessToken, setAccessToken, clearAccessToken } from './tokenStore'
+import { getAccessToken, setAccessToken, setStoredUser, clearStoredSession } from './tokenStore'
 import { notifyApiError } from './toastMiddleware'
 
 export class ApiError extends Error {
@@ -84,14 +84,18 @@ export async function refreshAccessToken({ showToast = false } = {}) {
       })
 
       if (!response.ok) {
-        clearAccessToken()
-        csrfToken = null
         const data = await parseJsonSafe(response)
+        // فقط وقتی خودِ refresh رد شده نشست را پاک کن؛ خطای شبکه یا ۵۰۰ نباید لاگ‌اوت کند.
+        if (response.status === 401 || response.status === 403) {
+          clearStoredSession()
+          csrfToken = null
+        }
         throwApiError(extractErrorMessage(data, response.status), response.status, data, showToast)
       }
 
       const data = await response.json()
       setAccessToken(data.token)
+      if (data.user) setStoredUser(data.user)
       return data
     } catch (err) {
       if (err instanceof ApiError) throw err

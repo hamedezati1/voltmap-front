@@ -21,6 +21,7 @@ import VehicleDetail from "./pages/VehicleDetail";
 import BottomNav from "./components/BottomNav";
 import {
   RequireAuth,
+  RequireAdmin,
   SplashRoute,
   OnboardingRoute,
   AuthRoute,
@@ -39,7 +40,6 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Admin: full-screen desktop layout, no mobile shell
   if (isAdmin) {
     return (
       <div style={{ background: "#f7f8fa" }}>
@@ -47,11 +47,13 @@ export default function App() {
           <Route
             path="/admin/*"
             element={
-              <Admin
-                stations={stations}
-                setStations={setStations}
-                loading={loading}
-              />
+              <RequireAdmin>
+                <Admin
+                  stations={stations}
+                  setStations={setStations}
+                  loading={loading}
+                />
+              </RequireAdmin>
             }
           />
         </Routes>
