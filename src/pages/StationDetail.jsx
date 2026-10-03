@@ -22,6 +22,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { isOwnerStation } from "../lib/mapMarkers";
+import { useAuth } from "../context/AuthContext";
 import {
   addStationReview,
   addFavoriteStation,
@@ -72,12 +73,12 @@ function InfoRow({ icon: Icon, label, value }) {
 export default function StationDetail({ stations, setStations }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const station = stations.find((s) => s.id === Number(id));
 
   const [reviewText, setReviewText] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
-  const [reviewName, setReviewName] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [reviewSaving, setReviewSaving] = useState(false);
   const [isFav, setIsFav] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [crowdStep, setCrowdStep] = useState("idle");
@@ -132,11 +133,13 @@ export default function StationDetail({ stations, setStations }) {
     ? new Date(station.dataUpdatedAt).toLocaleDateString("fa-IR")
     : null;
 
+  const reviewerName = user?.name?.trim() || user?.phone || "کاربر";
+
   const handleAddReview = async () => {
-    if (!reviewText.trim()) return;
+    if (!reviewText.trim() || reviewSaving) return;
+    setReviewSaving(true);
     try {
       const updated = await addStationReview(station.id, {
-        user: reviewName || "کاربر ناشناس",
         text: reviewText,
         rating: reviewRating,
       });
@@ -144,11 +147,11 @@ export default function StationDetail({ stations, setStations }) {
         prev.map((s) => (Number(s.id) === Number(updated.id) ? updated : s)),
       );
       setReviewText("");
-      setReviewName("");
       setReviewRating(5);
-      setShowForm(false);
     } catch (err) {
       alert(err.message || "خطا در ثبت نظر");
+    } finally {
+      setReviewSaving(false);
     }
   };
 
@@ -470,18 +473,6 @@ export default function StationDetail({ stations, setStations }) {
                 <Heart size={16} fill={isFav ? "#e74c3c" : "none"} />
               )}
             </button>
-            <button
-              onClick={() => setShowForm((f) => !f)}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold border flex items-center justify-center gap-2"
-              style={{
-                borderColor: "#e0e0e0",
-                color: "#555",
-                fontFamily: "Vazirmatn",
-                background: "#fff",
-              }}
-            >
-              <Star size={16} /> ثبت نظر
-            </button>
           </div>
         </div>
 
@@ -740,48 +731,6 @@ export default function StationDetail({ stations, setStations }) {
               نظرات کاربران
             </span>
           </div>
-          {showForm && (
-            <div
-              className="mb-4 p-3 rounded-xl"
-              style={{ background: "#f9fdf9", border: "1px solid #d0f0e0" }}
-            >
-              <input
-                value={reviewName}
-                onChange={(e) => setReviewName(e.target.value)}
-                placeholder="نام شما (اختیاری)"
-                className="w-full rounded-xl p-2 mb-2 text-sm bg-white border border-gray-200 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                style={{ fontFamily: "Vazirmatn" }}
-              />
-              <textarea
-                value={reviewText}
-                onChange={(e) => setReviewText(e.target.value)}
-                placeholder="نظر خود را بنویسید..."
-                rows={3}
-                className="w-full rounded-xl p-2 mb-2 text-sm bg-white border border-gray-200 outline-none resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                style={{ fontFamily: "Vazirmatn" }}
-              />
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button key={n} onClick={() => setReviewRating(n)}>
-                      <Star
-                        size={20}
-                        color="#F39C12"
-                        fill={n <= reviewRating ? "#F39C12" : "none"}
-                      />
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={handleAddReview}
-                  className="px-4 py-1.5 rounded-xl text-white text-sm"
-                  style={{ background: "#2ECC71", fontFamily: "Vazirmatn" }}
-                >
-                  ثبت
-                </button>
-              </div>
-            </div>
-          )}
           {!station.reviews?.length ? (
             <p
               style={{ fontSize: 13, textAlign: "center", padding: "12px 0" }}
@@ -790,38 +739,78 @@ export default function StationDetail({ stations, setStations }) {
               هنوز نظری ثبت نشده
             </p>
           ) : (
-            station.reviews.map((r, i) => (
-              <div
-                key={r.id || i}
-                className="mb-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700"
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span
-                    style={{ fontSize: 13, fontWeight: 600 }}
-                    className="text-gray-900 dark:text-white"
-                  >
-                    {r.user || r.userName || r.user_name}
-                  </span>
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <Star
-                        key={n}
-                        size={12}
-                        color="#F39C12"
-                        fill={n <= r.rating ? "#F39C12" : "none"}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <p
-                  style={{ fontSize: 12 }}
-                  className="text-gray-600 dark:text-gray-300"
+            <div className="max-h-72 space-y-3 overflow-y-auto pe-1 [scrollbar-width:thin] [scrollbar-color:#b7e4c7_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-emerald-300">
+              {station.reviews.map((r, i) => (
+                <div
+                  key={r.id || i}
+                  className="p-3 rounded-xl bg-gray-50 dark:bg-gray-700"
                 >
-                  {r.text}
-                </p>
-              </div>
-            ))
+                  <div className="flex justify-between items-center mb-1">
+                    <span
+                      style={{ fontSize: 13, fontWeight: 600 }}
+                      className="text-gray-900 dark:text-white"
+                    >
+                      {r.user || r.userName || r.user_name}
+                    </span>
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star
+                          key={n}
+                          size={12}
+                          color="#F39C12"
+                          fill={n <= r.rating ? "#F39C12" : "none"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p
+                    style={{ fontSize: 12 }}
+                    className="text-gray-600 dark:text-gray-300"
+                  >
+                    {r.text}
+                  </p>
+                </div>
+              ))}
+            </div>
           )}
+          <div
+            className="mt-4 p-3 rounded-xl"
+            style={{ background: "#f9fdf9", border: "1px solid #d0f0e0" }}
+          >
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+              نظر شما با نام {reviewerName} ثبت می‌شود
+            </p>
+            <textarea
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+              placeholder="نظر خود را بنویسید..."
+              rows={3}
+              className="w-full rounded-xl p-2 mb-2 text-sm bg-white border border-gray-200 outline-none resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              style={{ fontFamily: "Vazirmatn" }}
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button key={n} type="button" onClick={() => setReviewRating(n)}>
+                    <Star
+                      size={20}
+                      color="#F39C12"
+                      fill={n <= reviewRating ? "#F39C12" : "none"}
+                    />
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={handleAddReview}
+                disabled={reviewSaving || !reviewText.trim()}
+                className="px-4 py-1.5 rounded-xl text-white text-sm disabled:opacity-50"
+                style={{ background: "#2ECC71", fontFamily: "Vazirmatn" }}
+              >
+                {reviewSaving ? "در حال ثبت..." : "ثبت"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

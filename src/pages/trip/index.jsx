@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { fetchStations, fetchVehicles, updateVehicle } from '../../api'
-import { computeRealRange, planTrip } from './tripEngine'
+import { fetchVehicles, planRoute, updateVehicle } from '../../api'
 import { isGoldMember } from './membership'
 import { startGoldPayment } from './startGoldPayment'
 import TripIntro from './TripIntro'
@@ -22,7 +21,6 @@ export default function Trip() {
   const [weather, setWeather] = useState({ temp: 22, ac: false, heat: false })
   const [origin, setOrigin] = useState(null)
   const [destination, setDestination] = useState(null)
-  const [stations, setStations] = useState([])
   const [planning, setPlanning] = useState(false)
   const [result, setResult] = useState(null)
 
@@ -38,9 +36,6 @@ export default function Trip() {
         }
       })
       .catch(() => {})
-    fetchStations()
-      .then((list) => setStations(Array.isArray(list) ? list : []))
-      .catch(() => setStations([]))
   }, [])
 
   const handleStart = () => {
@@ -56,53 +51,42 @@ export default function Trip() {
     setPlanning(true)
     setResult(null)
 
-    const baseRange = parseInt(userRange, 10)
+    const vehicleRange = parseInt(userRange, 10)
     const batteryPct = parseInt(currentBattery, 10)
 
     if (selectedVehicle) {
-      await updateVehicle(selectedVehicle.id, { estimatedRange: baseRange }).catch(() => {})
+      await updateVehicle(selectedVehicle.id, {
+        estimatedRange: vehicleRange,
+        batteryLevel: batteryPct,
+      }).catch(() => {})
     }
 
-    const realRange = computeRealRange(baseRange, batteryPct, weather)
-    const vehicleConnector = selectedVehicle?.connector
-    const compatibleStations = vehicleConnector
-      ? stations.filter((s) => {
-          if (!s.connector && !s.connectors) return true
-          const stationConnectors = String(s.connectors || s.connector)
-            .split('+')
-            .map((x) => x.trim())
-          const vehicleConnectors = vehicleConnector.split('+').map((x) => x.trim())
-          return vehicleConnectors.some((vc) =>
-            stationConnectors.some((sc) => sc.toLowerCase().includes(vc.toLowerCase())),
-          )
-        })
-      : stations
-
-    if (compatibleStations.length === 0 && vehicleConnector) {
+    try {
+      const plan = await planRoute({
+        origin: { lat: origin.lat, lng: origin.lng, name: origin.name },
+        destination: { lat: destination.lat, lng: destination.lng, name: destination.name },
+        vehicleRange,
+        batteryPct,
+        connector: selectedVehicle?.connector,
+      })
+      setResult({
+        ...plan,
+        stops: Array.isArray(plan?.stops) ? plan.stops : [],
+        warnings: Array.isArray(plan?.warnings) ? plan.warnings : [],
+      })
+    } catch (err) {
       setResult({
         feasible: false,
         totalDist: 0,
         stops: [],
         finalBattery: 0,
-        warnings: [`⚠️ هیچ ایستگاهی با نازل ${vehicleConnector} در مسیر پیدا نشد`],
-        message: 'ایستگاه سازگار پیدا نشد',
+        warnings: [err?.message || 'محاسبه مسیر انجام نشد'],
+        message: 'خطا در محاسبه مسیر',
       })
+    } finally {
       setPlanning(false)
-      return
     }
-
-    const plan = planTrip({
-      origin,
-      destination,
-      realRange,
-      baseRange,
-      batteryPct,
-      stations: compatibleStations,
-      minArrival: 25,
-    })
-    setResult(plan)
-    setPlanning(false)
-  }, [origin, destination, userRange, currentBattery, weather, stations, selectedVehicle])
+  }, [origin, destination, userRange, currentBattery, selectedVehicle])
 
   if (step === 'intro') {
     return <TripIntro onStart={handleStart} />

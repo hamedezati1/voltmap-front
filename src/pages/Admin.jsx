@@ -83,7 +83,9 @@ export default function Admin({ stations, setStations }) {
           {active === "stations" && (
             <StationsPanel stations={stations} setStations={setStations} />
           )}
-          {active === "users" && <UsersPanel stations={stations} />}
+          {active === "users" && (
+            <UsersPanel stations={stations} setStations={setStations} />
+          )}
           {active === "news" && <NewsPanel />}
           {active === "stationreports" && (
             <StationReportsPanel setStations={setStations} />

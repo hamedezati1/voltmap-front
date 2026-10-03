@@ -7,7 +7,7 @@
  *   POST   /stations              — ایجاد (admin)
  *   PATCH  /stations/:id          — ویرایش (admin)
  *   DELETE /stations/:id          — حذف (admin)
- *   POST   /stations/:id/reviews  — ثبت نظر
+ *   POST   /stations/:id/reviews  — ثبت نظر (نام از حساب کاربر)
  *   PATCH  /stations/:id/status   — تغییر وضعیت
  *   POST   /stations/:id/crowd-report
  *   GET    /stations/:id/crowd-reports
@@ -16,6 +16,7 @@
 import { apiClient, USE_MOCK } from './client'
 import { normalizeStation, normalizeStations } from './normalize'
 import { mockStations, crowdReports } from '../mocks/stations'
+import { getStoredSession } from '../mocks/auth'
 
 /** فقط فیلدهای تعریف‌شده را می‌فرستد (مناسب PATCH جزئی) */
 function toStationPayload(data) {
@@ -95,14 +96,15 @@ export async function deleteStation(id) {
 }
 
 /**
- * ثبت نظر — همیشه ایستگاه به‌روزشده را برمی‌گرداند
- * body بک‌اند: { userName, text, rating }
+ * ثبت نظر — نام را بک‌اند از حساب کاربر می‌خواند.
+ * body: { text, rating }
  */
 export async function addStationReview(stationId, review) {
-  const userName = review.userName ?? review.user ?? 'کاربر ناشناس'
-  const payload = { userName, text: review.text, rating: Number(review.rating) }
+  const payload = { text: review.text, rating: Number(review.rating) }
 
   if (USE_MOCK) {
+    const session = getStoredSession()
+    const userName = session?.user?.name || session?.user?.phone || 'کاربر'
     const list = await mockStations.addReview(stationId, {
       user: userName,
       text: payload.text,

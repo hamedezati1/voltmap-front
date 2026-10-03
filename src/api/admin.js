@@ -4,6 +4,7 @@
  * Endpoints (backend):
  *   GET    /admin/dashboard
  *   GET    /admin/reviews
+ *   DELETE /admin/stations/:stationId/reviews/:reviewId
  *   GET    /admin/reports/usage?days=
  *   GET    /admin/users
  *   PATCH  /admin/users/:userId/membership
@@ -52,6 +53,22 @@ export async function fetchAllReviews() {
   }
   const list = await apiClient('/admin/reviews')
   return Array.isArray(list) ? list.map(normalizeReview) : []
+}
+
+export async function deleteStationReview(stationId, reviewId) {
+  if (USE_MOCK) {
+    const stations = await mockStations.getAll()
+    const station = stations.find((s) => Number(s.id) === Number(stationId))
+    if (!station) throw new Error('ایستگاه یافت نشد')
+    const reviews = (station.reviews || []).filter((r) => Number(r.id) !== Number(reviewId))
+    if (reviews.length === (station.reviews || []).length) throw new Error('نظر این ایستگاه یافت نشد')
+    const rating = reviews.length
+      ? Math.round((reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / reviews.length) * 10) / 10
+      : 0
+    await mockStations.update(station.id, { reviews, rating })
+    return { stationId: Number(stationId), reviewId: Number(reviewId), rating }
+  }
+  return apiClient(`/admin/stations/${stationId}/reviews/${reviewId}`, { method: 'DELETE' })
 }
 
 export async function fetchUsageReport(days = 7) {

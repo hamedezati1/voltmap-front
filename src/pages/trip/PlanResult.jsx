@@ -69,7 +69,7 @@ export default function PlanResult({ result, currentBattery }) {
         </div>
       )}
 
-      {result.stops.length > 0 && (
+      {result.stops.some((stop) => !stop.disabled) && (
         <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
             <div className="flex items-center gap-2">
@@ -95,56 +95,73 @@ export default function PlanResult({ result, currentBattery }) {
         ))}
 
       {result.stops.map((stop, i) => (
-        <div key={i} className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-600 dark:bg-gray-700">
+        <div
+          key={i}
+          className={`rounded-2xl border p-4 ${
+            stop.disabled
+              ? 'border-gray-200 bg-gray-100 opacity-80 dark:border-gray-700 dark:bg-gray-800'
+              : 'border-gray-100 bg-white dark:border-gray-600 dark:bg-gray-700'
+          }`}
+        >
           <div className="mb-2 flex items-start justify-between">
             <div className="flex items-center gap-2">
               <div
                 className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                style={{ background: scoreColor(stop.score) }}
+                style={{ background: stop.disabled ? '#95a5a6' : scoreColor(stop.score) }}
               >
                 {i + 1}
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{stop.station.name}</p>
+                <p className={`text-sm font-bold ${stop.disabled ? 'text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                  {stop.station.name}
+                </p>
                 <p className="text-xs text-gray-400">{stop.station.city}</p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="flex items-center gap-1">
-                <Star size={11} color="#F39C12" fill="#F39C12" />
-                <span className="text-xs font-bold" style={{ color: scoreColor(stop.score) }}>
-                  امتیاز {stop.score}
-                </span>
+            {!stop.disabled && (
+              <div className="text-right">
+                <div className="flex items-center gap-1">
+                  <Star size={11} color="#F39C12" fill="#F39C12" />
+                  <span className="text-xs font-bold" style={{ color: scoreColor(stop.score) }}>
+                    امتیاز {stop.score}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-          <p className="mb-2 text-xs text-gray-500">
-            از {stop.chargeFrom}٪ به {stop.chargeTo}٪ · حدود {stop.chargeTimeMin} دقیقه
-          </p>
-          {stop.deviation > 5 && (
-            <p className="mb-2 flex items-center gap-1 text-xs text-amber-600">
-              <TrendingUp size={11} /> انحراف از مسیر: {stop.deviation} کیلومتر
-            </p>
+          {stop.disabled ? (
+            <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">{stop.reason}</p>
+          ) : (
+            <>
+              <p className="mb-2 text-xs text-gray-500">
+                از {stop.chargeFrom}٪ به {stop.chargeTo}٪ · حدود {stop.chargeTimeMin} دقیقه
+              </p>
+              {stop.deviation > 5 && (
+                <p className="mb-2 flex items-center gap-1 text-xs text-amber-600">
+                  <TrendingUp size={11} /> انحراف از مسیر: {stop.deviation} کیلومتر
+                </p>
+              )}
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    window.open(`https://maps.google.com/?q=${stop.station.lat},${stop.station.lng}&navigate=yes`)
+                  }
+                  className="flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold text-white"
+                  style={{ background: '#2ECC71' }}
+                >
+                  <Navigation size={12} /> مسیریابی
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/station/${stop.station.id}`)}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-50 py-2 text-xs font-semibold text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"
+                >
+                  جزئیات <ChevronLeft size={12} />
+                </button>
+              </div>
+            </>
           )}
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                window.open(`https://maps.google.com/?q=${stop.station.lat},${stop.station.lng}&navigate=yes`)
-              }
-              className="flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold text-white"
-              style={{ background: '#2ECC71' }}
-            >
-              <Navigation size={12} /> مسیریابی
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(`/station/${stop.station.id}`)}
-              className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-50 py-2 text-xs font-semibold text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400"
-            >
-              جزئیات <ChevronLeft size={12} />
-            </button>
-          </div>
         </div>
       ))}
 

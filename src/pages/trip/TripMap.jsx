@@ -102,9 +102,10 @@ export default function TripMap({
 
     let cancelled = false
     ;(async () => {
+      const activeStops = result.stops.filter((stop) => !stop.disabled)
       const allPoints = [
         origin,
-        ...result.stops.map((s) => ({ lat: s.station.lat, lng: s.station.lng })),
+        ...activeStops.map((s) => ({ lat: s.station.lat, lng: s.station.lng })),
         destination,
       ]
       const coords = await fetchRouteCoords(allPoints)
@@ -117,15 +118,19 @@ export default function TripMap({
       }).addTo(map)
       layersRef.current.push(line)
       result.stops.forEach((stop, i) => {
+        const color = stop.disabled ? '#95a5a6' : scoreColor(stop.score)
         const sIcon = L.divIcon({
           className: '',
-          html: `<div style="width:28px;height:28px;background:${scoreColor(stop.score)};border-radius:50%;border:2.5px solid white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${i + 1}</div>`,
+          html: `<div style="width:28px;height:28px;background:${color};border-radius:50%;border:2.5px solid white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;box-shadow:0 2px 8px rgba(0,0,0,0.3);opacity:${stop.disabled ? 0.75 : 1};">${i + 1}</div>`,
           iconSize: [28, 28],
           iconAnchor: [14, 14],
         })
+        const popup = stop.disabled
+          ? `<div dir="rtl" style="font-family:Vazirmatn;font-size:12px"><b>${stop.station.name}</b><br/>${stop.reason || ''}</div>`
+          : `<div dir="rtl" style="font-family:Vazirmatn;font-size:12px">${stop.station.name}</div>`
         const m = L.marker([stop.station.lat, stop.station.lng], { icon: sIcon })
           .addTo(map)
-          .bindPopup(`<div dir="rtl" style="font-family:Vazirmatn;font-size:12px">${stop.station.name}</div>`)
+          .bindPopup(popup)
         layersRef.current.push(m)
       })
       map.fitBounds(coords, { padding: [40, 40] })
