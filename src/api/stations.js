@@ -69,6 +69,22 @@ export async function fetchStationById(id) {
 }
 
 /** یک ایستگاه ساخته‌شده را برمی‌گرداند (نه کل لیست) */
+/** عکس را جدا آپلود می‌کند و مسیر نسبی را برمی‌گرداند: { id, path } */
+export async function uploadStationImage(file) {
+  if (USE_MOCK) {
+    const path = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+    return { id: 'mock', path }
+  }
+  const formData = new FormData()
+  formData.append('image', file)
+  return apiClient('/uploads/stations', { method: 'POST', formData })
+}
+
 export async function createStation(data) {
   if (USE_MOCK) return normalizeStation(await mockStations.create(data))
   return normalizeStation(await apiClient('/stations', {

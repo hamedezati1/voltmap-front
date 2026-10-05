@@ -2,6 +2,8 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapPin, Zap, Navigation, Plug, PowerOff, Building2, Home } from 'lucide-react'
 import { isOwnerStation } from '../lib/mapMarkers'
+import { storageUrl } from '../api/config'
+import LazyImage from './LazyImage'
 
 const typeColors = {
   DC: { bg:'#E6F1FB', text:'#0C447C' },
@@ -33,7 +35,7 @@ export default function StationCard({ station }) {
          onClick={() => navigate(`/station/${station.id}`)}>
       <div style={{ width:72, height:72, borderRadius:14, flexShrink:0, overflow:'hidden', background: st.iconBg, display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
         {station.image
-          ? <img src={station.image} alt={station.name} style={{ width:'100%', height:'100%', objectFit:'cover', filter: isOffline ? 'grayscale(80%)' : 'none' }} />
+          ? <LazyImage src={storageUrl(station.image)} alt={station.name} style={{ width:'100%', height:'100%', objectFit:'cover', filter: isOffline ? 'grayscale(80%)' : 'none' }} />
           : isOffline
             ? <PowerOff size={28} color="#95a5a6" />
             : <Zap size={28} color={st.zapColor} />

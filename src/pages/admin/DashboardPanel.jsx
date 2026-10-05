@@ -6,7 +6,8 @@ import {
   Star,
   AlertCircle,
 } from "lucide-react";
-import { fetchUsers, getAllCrowdStats } from "../../api";
+import { fetchUsers, getAllCrowdStats, storageUrl } from "../../api";
+import LazyImage from "../../components/LazyImage";
 import StatusDonutChart from "../../components/StatusDonutChart";
 import StatCard from "./StatCard";
 import { STATUSES, CHART_DATA, CHART_DAYS } from "./constants";
@@ -322,8 +323,8 @@ export default function DashboardPanel({ stations, setActive }) {
                           }}
                         >
                           {s.image ? (
-                            <img
-                              src={s.image}
+                            <LazyImage
+                              src={storageUrl(s.image)}
                               style={{
                                 width: "100%",
                                 height: "100%",

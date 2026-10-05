@@ -119,6 +119,7 @@ export async function apiClient(path, options = {}) {
   const {
     method = 'GET',
     body,
+    formData,
     headers = {},
     skipAuth = false,
     skipRefresh = false,
@@ -126,10 +127,9 @@ export async function apiClient(path, options = {}) {
     showToast = true,
   } = options
 
-  const reqHeaders = {
-    'Content-Type': 'application/json',
-    ...headers,
-  }
+  const isForm = formData instanceof FormData
+  const reqHeaders = { ...headers }
+  if (!isForm) reqHeaders['Content-Type'] = 'application/json'
 
   if (!skipAuth) {
     const token = getAccessToken()
@@ -147,9 +147,8 @@ export async function apiClient(path, options = {}) {
     credentials: 'include',
   }
 
-  if (body !== undefined) {
-    config.body = JSON.stringify(body)
-  }
+  if (isForm) config.body = formData
+  else if (body !== undefined) config.body = JSON.stringify(body)
 
   try {
     let response = await fetch(`${API_BASE_URL}${path}`, config)

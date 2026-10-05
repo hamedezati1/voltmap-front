@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { storageUrl } from "../api/config";
+import LazyImage from "../components/LazyImage";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -203,8 +205,9 @@ export default function StationDetail({ stations, setStations }) {
         }}
       >
         {heroImage ? (
-          <img
-            src={heroImage}
+          <LazyImage
+            eager
+            src={storageUrl(heroImage)}
             alt={station.name}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
@@ -301,8 +304,8 @@ export default function StationDetail({ stations, setStations }) {
                 flexShrink: 0,
               }}
             >
-              <img
-                src={src}
+              <LazyImage
+                src={storageUrl(src)}
                 alt=""
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />

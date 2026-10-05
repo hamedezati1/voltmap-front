@@ -1,5 +1,7 @@
 // TODO: وقتی به دیتابیس وصل شد، ایستگاه‌ها از API گرفته می‌شن: GET /stations?connector=...&type=...
 import { useEffect, useRef, useState, useCallback } from "react";
+import { storageUrl } from "../api/config";
+import LazyImage from "../components/LazyImage";
 import { useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -699,7 +701,7 @@ export default function RoutesPage() {
           display: "flex",
           flexDirection: "column",
           gap: 8,
-          marginBottom:40
+          marginBottom: 40,
         }}
       >
         <button
@@ -722,7 +724,7 @@ export default function RoutesPage() {
             <Loader2
               size={22}
               color="#fff"
-              style={{ animation: "spin 1s linear infinite", }}
+              style={{ animation: "spin 1s linear infinite" }}
             />
           ) : (
             <Locate size={22} color="#fff" />
@@ -1059,8 +1061,8 @@ export default function RoutesPage() {
               <div
                 style={{ height: 140, overflow: "hidden", marginBottom: 12 }}
               >
-                <img
-                  src={selectedStation.image}
+                <LazyImage
+                  src={storageUrl(selectedStation.image)}
                   alt=""
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />

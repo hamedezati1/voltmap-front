@@ -10,7 +10,8 @@ import {
   Search,
   Pencil,
 } from "lucide-react";
-import { createStation, deleteStation, updateStation } from "../../api";
+import { createStation, deleteStation, updateStation, uploadStationImage, storageUrl } from "../../api";
+import LazyImage from "../../components/LazyImage";
 import { EMPTY_FORM, STATUSES } from "./constants";
 
 export default function StationsPanel({ stations, setStations }) {
@@ -20,6 +21,7 @@ export default function StationsPanel({ stations, setStations }) {
   const [saved, setSaved] = useState(false);
   const [search, setSearch] = useState("");
   const [imagePreview, setImagePreview] = useState("");
+  const [imageFile, setImageFile] = useState(null);
 
   const f = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -27,12 +29,18 @@ export default function StationsPanel({ stations, setStations }) {
     if (!form.name.trim() || !form.city.trim())
       return alert("نام و شهر را وارد کنید");
     try {
+      let imagePath = form.image1 || form.image || null;
+      if (imageFile) {
+        const uploaded = await uploadStationImage(imageFile);
+        imagePath = uploaded.path;
+      }
       const payload = {
         ...form,
         connectors: form.connectors || form.connector,
         maxPower: form.maxPower || String(form.power || ""),
         pricePerKwh: form.pricePerKwh || form.price || null,
-        image1: form.image1 || form.image || null,
+        image: imagePath,
+        image1: imagePath,
         acPorts: Number(form.acPorts) || 0,
         dcPorts: Number(form.dcPorts) || 0,
       };
@@ -47,6 +55,7 @@ export default function StationsPanel({ stations, setStations }) {
         setStations((prev) => [created, ...prev]);
       }
       setForm(EMPTY_FORM);
+      setImageFile(null);
       setImagePreview("");
       setSaved(true);
       setTimeout(() => {
@@ -91,7 +100,8 @@ export default function StationsPanel({ stations, setStations }) {
       price: station.price || "",
       image: station.image || "",
     });
-    setImagePreview(station.image || station.image1 || "");
+    setImageFile(null);
+    setImagePreview(storageUrl(station.image || station.image1 || ""));
     setAddMode(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -121,9 +131,29 @@ export default function StationsPanel({ stations, setStations }) {
     }
   };
 
+  const clearImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setImageFile(null);
+    setImagePreview("");
+    setForm((p) => ({ ...p, image: null, image1: null }));
+  };
+
   const handleImage = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      alert("فقط عکس jpg، png یا webp مجاز است");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("حجم عکس بیشتر از ۵ مگابایت است");
+      e.target.value = "";
+      return;
+    }
+    setImageFile(file);
     const reader = new FileReader();
     reader.onload = (ev) => setImagePreview(ev.target.result);
     reader.readAsDataURL(file);
@@ -288,11 +318,13 @@ export default function StationsPanel({ stations, setStations }) {
                             alt=""
                           />
                           <button
-                            onClick={() => setImagePreview("")}
+                            type="button"
+                            onClick={clearImage}
                             style={{
                               position: "absolute",
                               top: -8,
                               left: -8,
+                              zIndex: 2,
                               background: "#e74c3c",
                               border: "none",
                               borderRadius: "50%",
@@ -330,7 +362,7 @@ export default function StationsPanel({ stations, setStations }) {
                       )}
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         onChange={handleImage}
                         style={{
                           position: "absolute",
@@ -692,6 +724,7 @@ export default function StationsPanel({ stations, setStations }) {
                         onClick={() => {
                           setEditStation(null);
                           setForm(EMPTY_FORM);
+                          setImageFile(null);
                           setImagePreview("");
                           setAddMode(false);
                         }}
@@ -788,8 +821,8 @@ export default function StationsPanel({ stations, setStations }) {
                               }}
                             >
                               {s.image ? (
-                                <img
-                                  src={s.image}
+                                <LazyImage
+                                  src={storageUrl(s.image)}
                                   style={{
                                     width: "100%",
                                     height: "100%",

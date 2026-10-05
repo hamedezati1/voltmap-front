@@ -1,4 +1,4 @@
-export { API_BASE_URL, USE_MOCK } from './config'
+export { API_BASE_URL, USE_MOCK, STORAGE_BASE_URL, storageUrl } from './config'
 export { apiClient, ApiError, refreshAccessToken, fetchCsrfToken } from './client'
 export { notifyApiError, notifyApiSuccess } from './toastMiddleware'
 export { getAccessToken, setAccessToken, clearAccessToken } from './tokenStore'
