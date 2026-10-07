@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.log
+npm-debug.log*
+.DS_Store
+coverage/
+
+# عکس‌های آپلودشده
+storage/*
+!storage/.gitkeep
