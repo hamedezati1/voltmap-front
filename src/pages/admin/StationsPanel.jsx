@@ -13,8 +13,10 @@ import {
 import { createStation, deleteStation, updateStation, uploadStationImage, storageUrl } from "../../api";
 import LazyImage from "../../components/LazyImage";
 import { EMPTY_FORM, STATUSES } from "./constants";
+import useIsMobile from "./useIsMobile";
 
 export default function StationsPanel({ stations, setStations }) {
+  const isMobile = useIsMobile();
   const [form, setForm] = useState(EMPTY_FORM);
   const [addMode, setAddMode] = useState(false);
   const [editStation, setEditStation] = useState(null);
@@ -169,13 +171,13 @@ export default function StationsPanel({ stations, setStations }) {
 
   const inputStyle = {
     width: "100%",
-    border: "1px solid rgba(255,255,255,0.12)",
+    border: "1px solid #e5e7eb",
     borderRadius: 10,
     padding: "9px 13px",
     fontSize: 13,
     fontFamily: "Vazirmatn",
     outline: "none",
-    background: "rgba(255,255,255,0.06)",
+    background: "#fff",
     color: "#1a1a1a",
   };
   const selectStyle = { ...inputStyle };
@@ -187,11 +189,18 @@ export default function StationsPanel({ stations, setStations }) {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  flexWrap: "wrap",
                   marginBottom: 20,
-                  gap: 16,
+                  gap: isMobile ? 10 : 16,
                 }}
               >
-                <div style={{ position: "relative" }}>
+                <div
+                  style={{
+                    position: "relative",
+                    flex: isMobile ? "1 1 100%" : "0 0 auto",
+                    minWidth: 0,
+                  }}
+                >
                   <Search
                     size={15}
                     color="#aaa"
@@ -209,7 +218,7 @@ export default function StationsPanel({ stations, setStations }) {
                     style={{
                       ...inputStyle,
                       paddingRight: 36,
-                      width: 260,
+                      width: isMobile ? "100%" : 260,
                       background: "#fff",
                     }}
                   />
@@ -230,6 +239,8 @@ export default function StationsPanel({ stations, setStations }) {
                     cursor: "pointer",
                     fontFamily: "Vazirmatn",
                     boxShadow: "0 4px 12px rgba(46,204,113,0.3)",
+                    justifyContent: "center",
+                    width: isMobile ? "100%" : "auto",
                   }}
                 >
                   <Plus size={16} /> افزودن ایستگاه جدید
@@ -242,7 +253,7 @@ export default function StationsPanel({ stations, setStations }) {
                   style={{
                     background: "#fff",
                     borderRadius: 16,
-                    padding: 28,
+                    padding: isMobile ? 14 : 28,
                     border: "1px solid #eef0f3",
                     marginBottom: 24,
                   }}
@@ -379,7 +390,7 @@ export default function StationsPanel({ stations, setStations }) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr 2fr",
+                      gridTemplateColumns: isMobile ? "minmax(0,1fr)" : "1fr 1fr 2fr",
                       gap: 14,
                       marginBottom: 14,
                     }}
@@ -416,7 +427,7 @@ export default function StationsPanel({ stations, setStations }) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(6,1fr)",
+                      gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(6,1fr)",
                       gap: 14,
                       marginBottom: 14,
                     }}
@@ -608,7 +619,7 @@ export default function StationsPanel({ stations, setStations }) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "1fr 1fr 1fr",
                       gap: 14,
                       marginBottom: 20,
                     }}
@@ -697,7 +708,7 @@ export default function StationsPanel({ stations, setStations }) {
                       ایستگاه با موفقیت اضافه شد!
                     </div>
                   )}
-                  <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     <button
                       onClick={handleAdd}
                       style={{
@@ -755,7 +766,208 @@ export default function StationsPanel({ stations, setStations }) {
                   overflow: "hidden",
                 }}
               >
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                {isMobile && (
+                  <div>
+                    {filtered.map((s) => {
+                      const st =
+                        STATUSES.find((x) => x.value === s.status) ||
+                        STATUSES[0];
+                      const chip = {
+                        fontSize: 11,
+                        background: "#f5f7fa",
+                        color: "#555",
+                        padding: "3px 9px",
+                        borderRadius: 8,
+                      };
+                      return (
+                        <div
+                          key={s.id}
+                          style={{
+                            padding: 14,
+                            borderTop: "1px solid #f5f7fa",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 12,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 46,
+                                height: 46,
+                                borderRadius: 12,
+                                overflow: "hidden",
+                                background: "#e8faf0",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {s.image ? (
+                                <LazyImage
+                                  src={storageUrl(s.image)}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                  alt=""
+                                />
+                              ) : (
+                                <Zap size={20} color="#2ECC71" />
+                              )}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  color: "#1a1a1a",
+                                }}
+                              >
+                                {s.name}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color: "#888",
+                                  marginTop: 2,
+                                }}
+                              >
+                                {s.city}
+                                {s.operator ? ` · ${s.operator}` : ""}
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Star
+                                size={13}
+                                color="#F39C12"
+                                fill={s.rating ? "#F39C12" : "none"}
+                              />
+                              <span
+                                style={{
+                                  fontSize: 13,
+                                  color: "#1a1a1a",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {s.rating || "—"}
+                              </span>
+                            </div>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 6,
+                              marginTop: 10,
+                            }}
+                          >
+                            <span
+                              style={{
+                                ...chip,
+                                background: "#e8faf0",
+                                color: "#27AE60",
+                              }}
+                            >
+                              {s.type}
+                            </span>
+                            <span style={chip}>
+                              {s.connectors || s.connector || "—"}
+                            </span>
+                            <span style={chip}>
+                              {s.maxPower || s.power || "—"}kW
+                            </span>
+                            <span style={chip}>
+                              {`AC:${s.acPorts ?? 0} / DC:${s.dcPorts ?? 0}`}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 8,
+                              marginTop: 12,
+                            }}
+                          >
+                            <button
+                              onClick={() => handleToggleStatus(s.id, s.status)}
+                              style={{
+                                fontSize: 12,
+                                padding: "6px 14px",
+                                borderRadius: 20,
+                                background: st.bg,
+                                color: st.color,
+                                fontWeight: 600,
+                                border: "none",
+                                cursor: "pointer",
+                                fontFamily: "Vazirmatn",
+                              }}
+                            >
+                              {st.label}
+                            </button>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button
+                                onClick={() => handleEditStart(s)}
+                                title="ویرایش"
+                                aria-label="ویرایش"
+                                style={{
+                                  background: "#EBF5FB",
+                                  border: "none",
+                                  borderRadius: 9,
+                                  width: 38,
+                                  height: 38,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <Pencil size={15} color="#2980B9" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(s.id)}
+                                title="حذف"
+                                aria-label="حذف"
+                                style={{
+                                  background: "#FCEBEB",
+                                  border: "none",
+                                  borderRadius: 9,
+                                  width: 38,
+                                  height: 38,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <Trash2 size={15} color="#A32D2D" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {!isMobile && (
+                <div className="adm-table-wrap">
+                <table
+                  className="adm-table"
+                  style={{ width: "100%", minWidth: 980, borderCollapse: "collapse" }}
+                >
                   <thead>
                     <tr style={{ background: "#f8f9fb" }}>
                       {[
@@ -985,6 +1197,8 @@ export default function StationsPanel({ stations, setStations }) {
                     })}
                   </tbody>
                 </table>
+                </div>
+                )}
                 {filtered.length === 0 && (
                   <div
                     style={{ textAlign: "center", padding: 48, color: "#aaa" }}

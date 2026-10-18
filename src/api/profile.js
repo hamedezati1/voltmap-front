@@ -13,6 +13,8 @@ import { normalizeStations } from './normalize'
 import { mockProfile } from '../mocks/profile'
 import { mockStations } from '../mocks/stations'
 import { getStoredSession } from '../mocks/auth'
+import { normalizeMembership } from '../lib/membership'
+import { filterStationsForUser } from '../lib/homeStations'
 
 function currentUserId() {
   const session = getStoredSession()
@@ -28,13 +30,14 @@ export async function fetchProfile() {
       name: session?.user?.name ?? '',
       email: session?.user?.email ?? '',
       phone: session?.user?.phone ?? '',
-      membership: session?.user?.membership ?? stored.membership ?? 'رایگان',
+      membership: normalizeMembership(session?.user?.membership ?? stored.membership),
       totalSessions: stored.totalSessions ?? 0,
       totalKwh: stored.totalKwh ?? 0,
       favoriteStationIds: stored.favoriteStationIds ?? [],
     }
   }
-  return apiClient('/profile')
+  const profile = await apiClient('/profile')
+  return profile ? { ...profile, membership: normalizeMembership(profile.membership) } : profile
 }
 
 export async function updateProfile(data) {
@@ -52,7 +55,11 @@ export async function fetchFavoriteStations() {
     const ids = profile.favoriteStationIds ?? []
     if (ids.length === 0) return []
     const allStations = await mockStations.getAll()
-    return normalizeStations(allStations.filter(s => ids.includes(s.id)))
+    // ایستگاه خانگی برای کاربر رایگان نمایش داده نمی‌شود
+    return filterStationsForUser(
+      normalizeStations(allStations.filter(s => ids.includes(s.id))),
+      getStoredSession()?.user,
+    )
   }
   const list = await apiClient('/profile/favorites')
   return normalizeStations(list)

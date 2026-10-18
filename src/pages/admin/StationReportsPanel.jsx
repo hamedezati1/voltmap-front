@@ -14,8 +14,12 @@ import {
   rejectStationReport,
 } from "../../api";
 import StatCard from "./StatCard";
+import useIsMobile from "./useIsMobile";
+import { missingReportFields } from "../../lib/stationReportFields";
+import { normalizeMembership } from "../../lib/membership";
 
 export default function StationReportsPanel({ setStations }) {
+  const isMobile = useIsMobile();
   const [stationReports, setStationReports] = useState([]);
   const [srLoading, setSrLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
@@ -29,11 +33,14 @@ export default function StationReportsPanel({ setStations }) {
   }, []);
 
   const handleApproveReport = async (report) => {
+    const isHome = Boolean(report.isHome);
     await approveStationReport(report.id);
     try {
       const type =
         report.type === "DC" ? "DC" : report.type === "AC/DC" ? "AC/DC" : "AC";
-      const ports = report.ports || 1;
+      const ports = Number(report.ports) || 1;
+      const priceText = String(report.price ?? "").trim();
+      const isFree = Boolean(report.isFree) || priceText === "رایگان";
       const newStation = await createStation({
         name: report.name,
         city: report.city || "نامشخص",
@@ -59,9 +66,18 @@ export default function StationReportsPanel({ setStations }) {
               ? Math.max(1, ports - Math.floor(ports / 2))
               : ports,
         status: "available",
-        isOwnerStation: true,
-        pricePerKwh: report.price || null,
+        isFree,
+        pricePerKwh: isFree ? null : priceText || null,
         hours: report.hours || "۲۴ ساعته",
+        description: report.notes || report.ownerNote || null,
+        image: report.image || null,
+        // ایستگاه خانگی ← بخش «شارژرها» + فقط برای پرو/پلاس روی نقشه
+        // ایستگاه معمولی ← بخش «ایستگاه‌ها» + برای همه
+        isHomeStation: isHome,
+        isOwnerStation: isHome,
+        ownerName: report.reporterName || null,
+        ownerId: report.reportedBy ?? null,
+        sourceReportId: report.id,
       });
       setStations((prev) => [newStation, ...prev]);
     } catch (err) {
@@ -70,7 +86,11 @@ export default function StationReportsPanel({ setStations }) {
     setStationReports((prev) =>
       prev.map((r) => (r.id === report.id ? { ...r, status: "approved" } : r)),
     );
-    alert(`✅ ایستگاه «${report.name}» تأیید و به لیست اضافه شد`);
+    alert(
+      isHome
+        ? `✅ ایستگاه خانگی «${report.name}» تأیید شد و در بخش «شارژرها» قرار گرفت`
+        : `✅ ایستگاه «${report.name}» تأیید و به لیست ایستگاه‌ها اضافه شد`,
+    );
   };
 
   const handleRejectReport = async () => {
@@ -113,9 +133,9 @@ export default function StationReportsPanel({ setStations }) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(3,1fr)",
-                      gap: 16,
-                      marginBottom: 24,
+                      gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(3,1fr)",
+                      gap: isMobile ? 10 : 16,
+                      marginBottom: isMobile ? 14 : 24,
                     }}
                   >
                     <StatCard
@@ -180,6 +200,8 @@ export default function StationReportsPanel({ setStations }) {
                           padding: 24,
                           width: "100%",
                           maxWidth: 400,
+                          maxHeight: "90vh",
+                          overflowY: "auto",
                           border: "1px solid rgba(255,255,255,0.1)",
                         }}
                       >
@@ -261,15 +283,15 @@ export default function StationReportsPanel({ setStations }) {
                     <div
                       style={{
                         textAlign: "center",
-                        padding: 60,
+                        padding: isMobile ? 36 : 60,
                         background: "#f5f7fa",
                         borderRadius: 16,
-                        border: "1px solid rgba(255,255,255,0.06)",
+                        border: "1px solid #eef0f3",
                       }}
                     >
                       <ClipboardList
                         size={40}
-                        color="rgba(255,255,255,0.15)"
+                        color="#ddd"
                         style={{ margin: "0 auto 12px" }}
                       />
                       <p style={{ color: "#aaa", fontSize: 14 }}>
@@ -283,7 +305,7 @@ export default function StationReportsPanel({ setStations }) {
                       style={{
                         display: "flex",
                         flexDirection: "column",
-                        gap: 16,
+                        gap: isMobile ? 12 : 16,
                       }}
                     >
                       {stationReports.map((report) => {
@@ -305,7 +327,7 @@ export default function StationReportsPanel({ setStations }) {
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 12,
-                                padding: "14px 18px",
+                                padding: isMobile ? "12px 14px" : "14px 18px",
                                 borderBottom: "1px solid #f5f7fa",
                               }}
                             >
@@ -322,11 +344,12 @@ export default function StationReportsPanel({ setStations }) {
                                   }}
                                 />
                               )}
-                              <div style={{ flex: 1 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
                                 <div
                                   style={{
                                     display: "flex",
                                     alignItems: "center",
+                                    flexWrap: "wrap",
                                     gap: 8,
                                     marginBottom: 4,
                                   }}
@@ -336,25 +359,26 @@ export default function StationReportsPanel({ setStations }) {
                                       fontSize: 15,
                                       fontWeight: 700,
                                       color: "#1a1a1a",
+                                      minWidth: 0,
                                     }}
                                   >
                                     {report.name}
                                   </span>
-                                  {report.isHome && (
-                                    <span
-                                      style={{
-                                        fontSize: 10,
-                                        background: "rgba(52,152,219,0.2)",
-                                        color: "#3498DB",
-                                        padding: "2px 8px",
-                                        borderRadius: 20,
-                                        border:
-                                          "1px solid rgba(52,152,219,0.3)",
-                                      }}
-                                    >
-                                      خانگی
-                                    </span>
-                                  )}
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      background: report.isHome
+                                        ? "#FFF6E0"
+                                        : "#EBF5FB",
+                                      color: report.isHome ? "#8C5E08" : "#2980B9",
+                                      padding: "2px 8px",
+                                      borderRadius: 20,
+                                    }}
+                                  >
+                                    {report.isHome
+                                      ? "ایستگاه خانگی ← شارژرها"
+                                      : "ایستگاه معمولی"}
+                                  </span>
                                   <span
                                     style={{
                                       fontSize: 11,
@@ -379,97 +403,197 @@ export default function StationReportsPanel({ setStations }) {
                               </div>
                             </div>
 
-                            {/* جزئیات */}
-                            <div style={{ padding: "14px 18px" }}>
+                            {/* جزئیات کامل برای بررسی ادمین */}
+                            <div style={{ padding: isMobile ? "12px 14px" : "14px 18px" }}>
+                              {(() => {
+                                const missing = missingReportFields(report);
+                                if (!missing.length) return null;
+                                return (
+                                  <div
+                                    style={{
+                                      fontSize: 12,
+                                      color: "#B45309",
+                                      background: "#FEF3C7",
+                                      border: "1px solid #FDE68A",
+                                      borderRadius: 10,
+                                      padding: "8px 10px",
+                                      marginBottom: 12,
+                                      lineHeight: 1.8,
+                                    }}
+                                  >
+                                    ⚠️ فیلدهای ناقص: {missing.join("، ")}
+                                  </div>
+                                );
+                              })()}
+
+                              {report.image && (
+                                <a
+                                  href={report.image}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ display: "block", marginBottom: 12 }}
+                                >
+                                  <img
+                                    src={report.image}
+                                    alt={report.name}
+                                    style={{
+                                      width: "100%",
+                                      maxHeight: 220,
+                                      objectFit: "cover",
+                                      borderRadius: 12,
+                                      display: "block",
+                                    }}
+                                  />
+                                </a>
+                              )}
+
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "repeat(4,1fr)",
+                                  gridTemplateColumns: isMobile
+                                    ? "repeat(2,minmax(0,1fr))"
+                                    : "repeat(4,minmax(0,1fr))",
                                   gap: 8,
                                   marginBottom: 12,
                                 }}
                               >
                                 {[
-                                  { label: "نوع", value: report.type },
+                                  { label: "نام ایستگاه", value: report.name },
+                                  { label: "شهر", value: report.city },
+                                  { label: "ساعت کاری", value: report.hours },
+                                  { label: "نوع شارژر", value: report.type },
                                   { label: "کانکتور", value: report.connector },
                                   {
                                     label: "توان",
-                                    value: `${report.power || "—"}kW`,
+                                    value: report.power ? `${report.power} kW` : "",
                                   },
-                                  { label: "پورت", value: report.ports || "—" },
-                                ].map((item) => (
-                                  <div
-                                    key={item.label}
-                                    style={{
-                                      background: "#f8f9fb",
-                                      borderRadius: 8,
-                                      padding: "8px 6px",
-                                      textAlign: "center",
-                                    }}
-                                  >
+                                  { label: "تعداد پورت", value: report.ports },
+                                  {
+                                    label: "قیمت هر kWh",
+                                    value: report.isFree
+                                      ? "رایگان"
+                                      : report.price
+                                        ? /^\d+$/.test(String(report.price))
+                                          ? `${Number(report.price).toLocaleString("fa-IR")} تومان`
+                                          : report.price
+                                        : "",
+                                  },
+                                  {
+                                    label: "عرض جغرافیایی",
+                                    value: report.lat,
+                                    ltr: true,
+                                  },
+                                  {
+                                    label: "طول جغرافیایی",
+                                    value: report.lng,
+                                    ltr: true,
+                                  },
+                                  {
+                                    label: "گزارش‌دهنده",
+                                    value: report.reporterName,
+                                    optional: true,
+                                  },
+                                  {
+                                    label: "اشتراک گزارش‌دهنده",
+                                    value: report.reporterMembership
+                                      ? normalizeMembership(
+                                          report.reporterMembership,
+                                        )
+                                      : "",
+                                    optional: true,
+                                  },
+                                ].map((item) => {
+                                  const empty =
+                                    item.value === undefined ||
+                                    item.value === null ||
+                                    String(item.value).trim() === "";
+                                  return (
                                     <div
+                                      key={item.label}
                                       style={{
-                                        fontSize: 10,
-                                        color: "#aaa",
-                                        marginBottom: 3,
+                                        background: "#fff",
+                                        border: "1px solid #eef0f3",
+                                        borderRadius: 8,
+                                        padding: "8px 8px",
+                                        textAlign: "center",
+                                        minWidth: 0,
                                       }}
                                     >
-                                      {item.label}
+                                      <div
+                                        style={{
+                                          fontSize: 10,
+                                          color: "#aaa",
+                                          marginBottom: 3,
+                                        }}
+                                      >
+                                        {item.label}
+                                      </div>
+                                      <div
+                                        style={{
+                                          fontSize: 12,
+                                          fontWeight: 600,
+                                          color:
+                                            empty && !item.optional
+                                              ? "#E74C3C"
+                                              : "#1a1a1a",
+                                          direction: item.ltr ? "ltr" : "rtl",
+                                          wordBreak: "break-word",
+                                        }}
+                                      >
+                                        {empty ? "—" : item.value}
+                                      </div>
                                     </div>
-                                    <div
-                                      style={{
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        color: "rgba(255,255,255,0.8)",
-                                      }}
-                                    >
-                                      {item.value}
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
 
                               <div
                                 style={{
                                   fontSize: 12,
-                                  color: "rgba(255,255,255,0.5)",
-                                  marginBottom: 6,
+                                  color: report.address ? "#666" : "#E74C3C",
+                                  marginBottom: 8,
+                                  lineHeight: 1.8,
                                 }}
                               >
                                 <MapPin
                                   size={12}
                                   style={{ display: "inline", marginLeft: 4 }}
                                 />
-                                {report.address}
+                                <b style={{ color: "#888", fontWeight: 600 }}>
+                                  آدرس:{" "}
+                                </b>
+                                {report.address || "—"}
                               </div>
 
-                              {report.lat && report.lng && (
-                                <div
-                                  style={{
-                                    fontSize: 11,
-                                    color: "#aaa",
-                                    marginBottom: 6,
-                                    direction: "ltr",
-                                  }}
-                                >
-                                  📍 {report.lat}, {report.lng}
-                                </div>
-                              )}
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color:
+                                    report.notes || report.ownerNote
+                                      ? "#666"
+                                      : "#E74C3C",
+                                  background: "#fff",
+                                  border: "1px solid #eef0f3",
+                                  borderRadius: 8,
+                                  padding: "8px 10px",
+                                  marginBottom: 10,
+                                  lineHeight: 1.8,
+                                }}
+                              >
+                                <b style={{ color: "#888", fontWeight: 600 }}>
+                                  توضیحات:{" "}
+                                </b>
+                                {report.notes || report.ownerNote || "—"}
+                              </div>
 
-                              {(report.notes || report.ownerNote) && (
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    color: "rgba(255,255,255,0.5)",
-                                    background: "#f8f9fb",
-                                    borderRadius: 8,
-                                    padding: "8px 10px",
-                                    marginBottom: 10,
-                                  }}
-                                >
-                                  💬 {report.notes || report.ownerNote}
-                                </div>
-                              )}
+                              <div style={{ fontSize: 11, color: "#aaa" }}>
+                                تاریخ ثبت:{" "}
+                                {report.createdAt
+                                  ? new Date(report.createdAt).toLocaleString(
+                                      "fa-IR",
+                                    )
+                                  : "—"}
+                              </div>
 
                               {/* دکمه‌های عملیات */}
                               {report.status === "pending" && (
@@ -477,13 +601,14 @@ export default function StationReportsPanel({ setStations }) {
                                   style={{
                                     display: "flex",
                                     gap: 8,
+                                    flexWrap: "wrap",
                                     marginTop: 12,
                                   }}
                                 >
                                   <button
                                     onClick={() => handleApproveReport(report)}
                                     style={{
-                                      flex: 1,
+                                      flex: "1 1 140px",
                                       padding: "10px",
                                       background: "rgba(46,204,113,0.2)",
                                       color: "#2ECC71",
@@ -505,7 +630,7 @@ export default function StationReportsPanel({ setStations }) {
                                   <button
                                     onClick={() => setRejectModal(report.id)}
                                     style={{
-                                      flex: 1,
+                                      flex: "1 1 140px",
                                       padding: "10px",
                                       background: "rgba(231,76,60,0.15)",
                                       color: "#E74C3C",

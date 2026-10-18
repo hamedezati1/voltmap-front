@@ -5,7 +5,7 @@ import { User, Zap, Navigation, MapPinned, Home } from 'lucide-react'
 
 const navItems = [
   { path: '/profile',     Icon: User,       label: 'پروفایل' },
-  { path: '/my-station',  Icon: Zap,        label: 'ایستگاه من' },
+  { path: '/my-station',  Icon: Zap,        label: 'ثبت ایستگاه' },
   { path: '/',            Icon: Home,       label: 'خانه', center: true },
   { path: '/routes',      Icon: MapPinned,  label: 'نقشه' },
   { path: '/trip',        Icon: Navigation, label: 'سفر' },

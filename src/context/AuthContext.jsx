@@ -6,11 +6,23 @@ import {
   getSession,
 } from '../api/auth'
 import { setAccessToken, clearStoredSession } from '../api/tokenStore'
+import { normalizeMembership } from '../lib/membership'
+
+/** نام‌های قدیمی اشتراک (ویژه/طلایی) را به پرو/پلاس تبدیل می‌کند */
+const withMembership = (u) =>
+  u ? { ...u, membership: normalizeMembership(u.membership) } : u
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setUserRaw] = useState(null)
+  const setUser = useCallback(
+    (next) =>
+      setUserRaw((prev) =>
+        withMembership(typeof next === 'function' ? next(prev) : next),
+      ),
+    [],
+  )
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
 

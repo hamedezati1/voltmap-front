@@ -1,5 +1,9 @@
-const GOLD_LEVELS = new Set(['طلایی', 'ویژه', 'حرفه‌ای', 'gold', 'plus', 'pro'])
+import { isPaidMember } from '../../lib/membership'
 
+/**
+ * برنامه‌ریزی سفر برای اعضای پرو و پلاس فعال است.
+ * (نام تابع برای سازگاری با کدهای قبلی مانده است)
+ */
 export function isGoldMember(user) {
-  return GOLD_LEVELS.has(user?.membership)
+  return isPaidMember(user)
 }

@@ -29,7 +29,7 @@ const MENU_ITEMS = [
     path: "/profile/personal-info",
   },
   { Icon: Car, label: "خودروهای من", path: "/vehicles" },
-  { Icon: Zap, label: "ایستگاه من", path: "/my-station" },
+  { Icon: Zap, label: "ثبت ایستگاه", path: "/my-station" },
   { Icon: MapPinned, label: "نقشه مسیر", path: "/routes" },
   { Icon: Navigation, label: "برنامه‌ریزی سفر", path: "/trip" },
   { Icon: HelpCircle, label: "راهنما و پشتیبانی", path: "/help" },

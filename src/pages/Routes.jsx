@@ -30,6 +30,8 @@ import {
   isFavoriteStation,
 } from "../api";
 import { buildPinHTML } from "../components/MapView";
+import { useAuth } from "../context/AuthContext";
+import { filterStationsForUser } from "../lib/homeStations";
 import {
   buildViewportItems,
   buildClusterHTML,
@@ -104,6 +106,7 @@ const STATUS_COLORS_MAP = {
 
 export default function RoutesPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const mapRef = useRef(null);
   const mapInst = useRef(null);
   const markersLayerRef = useRef(null);
@@ -131,7 +134,11 @@ export default function RoutesPage() {
   useEffect(() => {
     fetchStations()
       .then((data) => {
-        const list = Array.isArray(data) ? data : [];
+        // ایستگاه خانگی فقط برای کاربران پرو و پلاس نمایش داده می‌شود
+        const list = filterStationsForUser(
+          Array.isArray(data) ? data : [],
+          user,
+        );
         setStations(list);
         setFiltered(list);
       })
@@ -139,7 +146,7 @@ export default function RoutesPage() {
         setStations([]);
         setFiltered([]);
       });
-  }, []);
+  }, [user?.membership]);
 
   // TODO: فیلتر — وقتی به دیتابیس وصل شد: GET /stations?connector=...&type=...&fast=true
   useEffect(() => {

@@ -10,8 +10,10 @@ import {
   Pencil,
 } from "lucide-react";
 import { createNews, deleteNews, fetchNews, updateNews } from "../../api";
+import useIsMobile from "./useIsMobile";
 
 export default function NewsPanel() {
+  const isMobile = useIsMobile();
   const [newsList, setNewsList] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsForm, setNewsForm] = useState({
@@ -99,15 +101,17 @@ export default function NewsPanel() {
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 12,
                       marginBottom: 20,
                     }}
                   >
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: 20,
+                          fontSize: isMobile ? 18 : 20,
                           fontWeight: 700,
-                          color: "rgba(255,255,255,0.95)",
+                          color: "#1a1a1a",
                           marginBottom: 4,
                         }}
                       >
@@ -134,6 +138,7 @@ export default function NewsPanel() {
                         alignItems: "center",
                         gap: 8,
                         padding: "10px 20px",
+                        flexShrink: 0,
                         background: "#2ECC71",
                         color: "#fff",
                         border: "none",
@@ -155,8 +160,8 @@ export default function NewsPanel() {
                         background: "#fff",
                         borderRadius: 16,
                         border: "1px solid #eef0f3",
-                        padding: 24,
-                        marginBottom: 24,
+                        padding: isMobile ? 14 : 24,
+                        marginBottom: isMobile ? 14 : 24,
                       }}
                     >
                       <div
@@ -248,7 +253,7 @@ export default function NewsPanel() {
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
+                          gridTemplateColumns: isMobile ? "minmax(0,1fr)" : "1fr 1fr",
                           gap: 12,
                           marginBottom: 12,
                         }}
@@ -306,13 +311,13 @@ export default function NewsPanel() {
                             }
                             style={{
                               width: "100%",
-                              border: "1px solid rgba(255,255,255,0.12)",
+                              border: "1px solid #e8eaed",
                               borderRadius: 10,
                               padding: "9px 12px",
                               fontSize: 13,
                               fontFamily: "Vazirmatn",
                               outline: "none",
-                              background: "rgba(255,255,255,0.06)",
+                              background: "#fff",
                               color: "#1a1a1a",
                             }}
                           >
@@ -472,13 +477,15 @@ export default function NewsPanel() {
                             border: "1px solid #eef0f3",
                             overflow: "hidden",
                             display: "flex",
+                            flexDirection: isMobile ? "column" : "row",
                             gap: 0,
                           }}
                         >
                           {item.image && (
                             <div
                               style={{
-                                width: 140,
+                                width: isMobile ? "100%" : 140,
+                                height: isMobile ? 160 : "auto",
                                 flexShrink: 0,
                                 overflow: "hidden",
                               }}
@@ -494,7 +501,13 @@ export default function NewsPanel() {
                               />
                             </div>
                           )}
-                          <div style={{ flex: 1, padding: "16px 20px" }}>
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              padding: isMobile ? "14px" : "16px 20px",
+                            }}
+                          >
                             <div
                               style={{
                                 display: "flex",
@@ -510,7 +523,7 @@ export default function NewsPanel() {
                                   style={{ flexShrink: 0, marginTop: 2 }}
                                 />
                               )}
-                              <div style={{ flex: 1 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
                                 <div
                                   style={{
                                     fontSize: 15,
@@ -524,6 +537,8 @@ export default function NewsPanel() {
                                 <div
                                   style={{
                                     display: "flex",
+                                    flexWrap: "wrap",
+                                    alignItems: "center",
                                     gap: 8,
                                     marginBottom: 8,
                                   }}
@@ -561,7 +576,7 @@ export default function NewsPanel() {
                             >
                               {item.body}
                             </p>
-                            <div style={{ display: "flex", gap: 8 }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                               <button
                                 onClick={() => handleNewsEdit(item)}
                                 style={{

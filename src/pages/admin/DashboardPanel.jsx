@@ -10,9 +10,12 @@ import { fetchUsers, getAllCrowdStats, storageUrl } from "../../api";
 import LazyImage from "../../components/LazyImage";
 import StatusDonutChart from "../../components/StatusDonutChart";
 import StatCard from "./StatCard";
+import useIsMobile from "./useIsMobile";
 import { STATUSES, CHART_DATA, CHART_DAYS } from "./constants";
 
 export default function DashboardPanel({ stations, setActive }) {
+  const isMobile = useIsMobile();
+  const cardPad = isMobile ? 14 : 22;
   const [users, setUsers] = useState([]);
   const [crowdStats, setCrowdStats] = useState([]);
 
@@ -52,9 +55,9 @@ export default function DashboardPanel({ stations, setActive }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(4,1fr)",
-                  gap: 16,
-                  marginBottom: 24,
+                  gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(4,1fr)",
+                  gap: isMobile ? 10 : 16,
+                  marginBottom: isMobile ? 14 : 24,
                 }}
               >
                 <StatCard
@@ -113,6 +116,7 @@ export default function DashboardPanel({ stations, setActive }) {
                       borderBottom: "1px solid #f5f7fa",
                       display: "flex",
                       alignItems: "center",
+                      flexWrap: "wrap",
                       gap: 8,
                     }}
                   >
@@ -136,7 +140,95 @@ export default function DashboardPanel({ stations, setActive }) {
                       الگوریتم: اگه ≥۲ گزارش و &gt;۵۰٪ شلوغ → وضعیت busy می‌شه
                     </span>
                   </div>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  {isMobile && (
+                    <div>
+                      {crowdStats
+                        .filter((c) => c.recent > 0)
+                        .map((c) => {
+                          const st = stations.find((s) => s.id === c.stationId);
+                          const computed = c.computedStatus;
+                          return (
+                            <div
+                              key={c.stationId}
+                              style={{
+                                padding: "12px 14px",
+                                borderTop: "1px solid #f5f7fa",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  color: "#1a1a1a",
+                                  marginBottom: 8,
+                                }}
+                              >
+                                {st?.name || `ایستگاه #${c.stationId}`}
+                              </div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  gap: 6,
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    background: "#e8faf0",
+                                    color: "#27AE60",
+                                    padding: "2px 10px",
+                                    borderRadius: 20,
+                                  }}
+                                >
+                                  خلوت: {c.availableCount}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    background: "#fef3e2",
+                                    color: "#E67E22",
+                                    padding: "2px 10px",
+                                    borderRadius: 20,
+                                  }}
+                                >
+                                  شلوغ: {c.busyCount}
+                                </span>
+                                {computed ? (
+                                  <span
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      background:
+                                        computed === "busy" ? "#fef3e2" : "#e8faf0",
+                                      color:
+                                        computed === "busy" ? "#E67E22" : "#27AE60",
+                                      padding: "3px 10px",
+                                      borderRadius: 20,
+                                    }}
+                                  >
+                                    {computed === "busy"
+                                      ? "شلوغ (آپدیت شد)"
+                                      : "خلوت (آپدیت شد)"}
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: 11, color: "#aaa" }}>
+                                    هنوز به حد نصاب نرسیده ({c.recent}/۲)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                  {!isMobile && (
+                  <div className="adm-table-wrap">
+                  <table
+                    className="adm-table"
+                    style={{ width: "100%", minWidth: 520, borderCollapse: "collapse" }}
+                  >
                     <thead>
                       <tr style={{ background: "#f8f9fb" }}>
                         {[
@@ -242,6 +334,8 @@ export default function DashboardPanel({ stations, setActive }) {
                         })}
                     </tbody>
                   </table>
+                  </div>
+                  )}
                 </div>
               )}
 
@@ -249,9 +343,9 @@ export default function DashboardPanel({ stations, setActive }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.4fr 1fr",
-                  gap: 20,
-                  marginBottom: 24,
+                  gridTemplateColumns: isMobile ? "minmax(0,1fr)" : "minmax(0,1.4fr) minmax(0,1fr)",
+                  gap: isMobile ? 12 : 20,
+                  marginBottom: isMobile ? 12 : 24,
                 }}
               >
                 {/* Recent stations */}
@@ -259,7 +353,7 @@ export default function DashboardPanel({ stations, setActive }) {
                   style={{
                     background: "#fff",
                     borderRadius: 16,
-                    padding: 22,
+                    padding: cardPad,
                     border: "1px solid #eef0f3",
                   }}
                 >
@@ -303,7 +397,7 @@ export default function DashboardPanel({ stations, setActive }) {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 14,
+                          gap: isMobile ? 10 : 14,
                           paddingBottom: 14,
                           marginBottom: 14,
                           borderBottom: "1px solid #f5f7fa",
@@ -354,6 +448,9 @@ export default function DashboardPanel({ stations, setActive }) {
                               fontSize: 11,
                               color: "#aaa",
                               marginTop: 2,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
                             }}
                           >
                             {s.city} · {s.type} · {s.maxPower || s.power || "—"}
@@ -384,7 +481,7 @@ export default function DashboardPanel({ stations, setActive }) {
                   style={{
                     background: "#fff",
                     borderRadius: 16,
-                    padding: 22,
+                    padding: cardPad,
                     border: "1px solid #eef0f3",
                   }}
                 >
@@ -459,7 +556,7 @@ export default function DashboardPanel({ stations, setActive }) {
                           <span
                             style={{
                               fontSize: 12,
-                              color: "rgba(255,255,255,0.35)",
+                              color: "#aaa",
                             }}
                           >
                             {pct}٪
@@ -486,15 +583,15 @@ export default function DashboardPanel({ stations, setActive }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.4fr 1fr",
-                  gap: 20,
+                  gridTemplateColumns: isMobile ? "minmax(0,1fr)" : "minmax(0,1.4fr) minmax(0,1fr)",
+                  gap: isMobile ? 12 : 20,
                 }}
               >
                 <div
                   style={{
                     background: "#fff",
                     borderRadius: 16,
-                    padding: 22,
+                    padding: cardPad,
                     border: "1px solid #eef0f3",
                   }}
                 >
@@ -512,7 +609,7 @@ export default function DashboardPanel({ stations, setActive }) {
                     style={{
                       display: "flex",
                       alignItems: "flex-end",
-                      gap: 10,
+                      gap: isMobile ? 5 : 10,
                       height: 140,
                     }}
                   >
@@ -521,6 +618,7 @@ export default function DashboardPanel({ stations, setActive }) {
                         key={i}
                         style={{
                           flex: 1,
+                          minWidth: 0,
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
@@ -539,9 +637,12 @@ export default function DashboardPanel({ stations, setActive }) {
                         ></div>
                         <span
                           style={{
-                            fontSize: 10,
+                            fontSize: isMobile ? 9 : 10,
                             color: "#aaa",
                             whiteSpace: "nowrap",
+                            maxWidth: "100%",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
                           }}
                         >
                           {chartDays[i]}
@@ -555,7 +656,7 @@ export default function DashboardPanel({ stations, setActive }) {
                   style={{
                     background: "#fff",
                     borderRadius: 16,
-                    padding: 22,
+                    padding: cardPad,
                     border: "1px solid #eef0f3",
                   }}
                 >
@@ -632,6 +733,7 @@ export default function DashboardPanel({ stations, setActive }) {
                             style={{
                               display: "flex",
                               justifyContent: "space-between",
+                              gap: 8,
                               marginBottom: 2,
                             }}
                           >
@@ -640,11 +742,15 @@ export default function DashboardPanel({ stations, setActive }) {
                                 fontSize: 13,
                                 fontWeight: 600,
                                 color: "#1a1a1a",
+                                minWidth: 0,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
                               }}
                             >
                               {r.user || r.userName || r.user_name}
                             </span>
-                            <div style={{ display: "flex", gap: 1 }}>
+                            <div style={{ display: "flex", gap: 1, flexShrink: 0 }}>
                               {[1, 2, 3, 4, 5].map((n) => (
                                 <Star
                                   key={n}

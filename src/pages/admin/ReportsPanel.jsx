@@ -6,9 +6,12 @@ import {
   PowerOff,
 } from "lucide-react";
 import StatCard from "./StatCard";
+import useIsMobile from "./useIsMobile";
 import { STATUSES, CHART_DATA, CHART_DAYS } from "./constants";
 
 export default function ReportsPanel({ stations }) {
+  const isMobile = useIsMobile();
+  const cardPad = isMobile ? 14 : 24;
   const available = stations.filter((s) => s.status === "available").length;
   const busy = stations.filter((s) => s.status === "busy").length;
   const offline = stations.filter((s) => s.status === "offline").length;
@@ -20,9 +23,9 @@ export default function ReportsPanel({ stations }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(4,1fr)",
-                  gap: 16,
-                  marginBottom: 24,
+                  gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(4,1fr)",
+                  gap: isMobile ? 10 : 16,
+                  marginBottom: isMobile ? 14 : 24,
                 }}
               >
                 <StatCard
@@ -66,16 +69,16 @@ export default function ReportsPanel({ stations }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "2fr 1fr",
-                  gap: 20,
-                  marginBottom: 24,
+                  gridTemplateColumns: isMobile ? "minmax(0,1fr)" : "minmax(0,2fr) minmax(0,1fr)",
+                  gap: isMobile ? 12 : 20,
+                  marginBottom: isMobile ? 12 : 24,
                 }}
               >
                 <div
                   style={{
                     background: "#fff",
                     borderRadius: 16,
-                    padding: 24,
+                    padding: cardPad,
                     border: "1px solid #eef0f3",
                   }}
                 >
@@ -93,7 +96,7 @@ export default function ReportsPanel({ stations }) {
                     style={{
                       display: "flex",
                       alignItems: "flex-end",
-                      gap: 12,
+                      gap: isMobile ? 6 : 12,
                       height: 160,
                     }}
                   >
@@ -102,6 +105,7 @@ export default function ReportsPanel({ stations }) {
                         key={i}
                         style={{
                           flex: 1,
+                          minWidth: 0,
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
@@ -126,7 +130,16 @@ export default function ReportsPanel({ stations }) {
                             height: `${(v / 250) * 130}px`,
                           }}
                         ></div>
-                        <span style={{ fontSize: 10, color: "#aaa" }}>
+                        <span
+                          style={{
+                            fontSize: isMobile ? 9 : 10,
+                            color: "#aaa",
+                            whiteSpace: "nowrap",
+                            maxWidth: "100%",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
                           {chartDays[i]}
                         </span>
                       </div>
@@ -138,7 +151,7 @@ export default function ReportsPanel({ stations }) {
                   style={{
                     background: "#fff",
                     borderRadius: 16,
-                    padding: 24,
+                    padding: cardPad,
                     border: "1px solid #eef0f3",
                   }}
                 >
@@ -170,6 +183,7 @@ export default function ReportsPanel({ stations }) {
                           style={{
                             display: "flex",
                             justifyContent: "space-between",
+                            gap: 8,
                             marginBottom: 6,
                           }}
                         >
@@ -181,6 +195,7 @@ export default function ReportsPanel({ stations }) {
                               fontSize: 13,
                               fontWeight: 600,
                               color: "#1a1a1a",
+                              whiteSpace: "nowrap",
                             }}
                           >
                             {count} ({pct}٪)
@@ -230,7 +245,138 @@ export default function ReportsPanel({ stations }) {
                     آمار تفصیلی همه ایستگاه‌ها
                   </span>
                 </div>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                {isMobile && (
+                  <div>
+                    {stations.map((s) => {
+                      const st =
+                        STATUSES.find((x) => x.value === s.status) ||
+                        STATUSES[0];
+                      return (
+                        <div
+                          key={s.id}
+                          style={{ padding: 14, borderTop: "1px solid #f5f7fa" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              gap: 10,
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  color: "#1a1a1a",
+                                }}
+                              >
+                                {s.name}
+                              </div>
+                              <div
+                                style={{ fontSize: 12, color: "#888", marginTop: 2 }}
+                              >
+                                {s.city}
+                              </div>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: "4px 12px",
+                                borderRadius: 20,
+                                background: st.bg,
+                                color: st.color,
+                                fontWeight: 600,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {st.label}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              alignItems: "center",
+                              gap: 6,
+                              marginTop: 10,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 11,
+                                background: "#e8faf0",
+                                color: "#27AE60",
+                                padding: "3px 10px",
+                                borderRadius: 8,
+                              }}
+                            >
+                              {s.type}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                background: "#f5f7fa",
+                                color: "#555",
+                                padding: "3px 10px",
+                                borderRadius: 8,
+                              }}
+                            >
+                              {s.power}kW
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                background: "#f5f7fa",
+                                color: "#555",
+                                padding: "3px 10px",
+                                borderRadius: 8,
+                              }}
+                            >
+                              {s.ports} پورت
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                background: "#f5f7fa",
+                                color: "#555",
+                                padding: "3px 10px",
+                                borderRadius: 8,
+                              }}
+                            >
+                              {(s.reviews || []).length} نظر
+                            </span>
+                            <span
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                marginRight: "auto",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "#1a1a1a",
+                              }}
+                            >
+                              <Star
+                                size={13}
+                                color="#F39C12"
+                                fill={s.rating ? "#F39C12" : "none"}
+                              />
+                              {s.rating || "—"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {!isMobile && (
+                <div className="adm-table-wrap">
+                <table
+                  className="adm-table"
+                  style={{ width: "100%", minWidth: 640, borderCollapse: "collapse" }}
+                >
                   <thead>
                     <tr style={{ background: "#f8f9fb" }}>
                       {[
@@ -347,7 +493,7 @@ export default function ReportsPanel({ stations }) {
                               color: "#666",
                             }}
                           >
-                            {s.reviews.length}
+                            {(s.reviews || []).length}
                           </td>
                           <td style={{ padding: "12px 16px" }}>
                             <div
@@ -378,6 +524,8 @@ export default function ReportsPanel({ stations }) {
                     })}
                   </tbody>
                 </table>
+                </div>
+                )}
               </div>
             </>
   );

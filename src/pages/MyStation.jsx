@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Zap,
   Home,
@@ -6,32 +7,37 @@ import {
   MapPinned,
   ChevronLeft,
   ArrowRight,
+  Crown,
+  Lock,
 } from "lucide-react";
 import StationReportForm from "../components/StationReportForm";
+import { useAuth } from "../context/AuthContext";
+import { canHostHomeStation } from "../lib/membership";
+import { startGoldPayment } from "./trip/startGoldPayment";
 
 const STEPS = [
   {
     n: "۱",
-    title: "ایستگاه من چیست؟",
-    text: "اگر شارژر برق در خانه، محل کار یا فضای شخصی خودتان دارید، می‌توانید آن را به‌عنوان ایستگاه خودتان در ولت‌مپ معرفی کنید. این ایستگاه با ایستگاه‌های عمومی فرق دارد و متعلق به شماست.",
-    Icon: Home,
+    title: "ثبت ایستگاه",
+    text: "اگر ایستگاه شارژ دارید، می‌توانید مشخصات کامل آن را در ولت‌مپ ثبت کنید. همه‌ی فیلدهای فرم الزامی است و تا کامل نشود، ثبت انجام نمی‌شود.",
+    Icon: Zap,
   },
   {
     n: "۲",
-    title: "ثبت برای کسب درآمد",
-    text: "با ثبت ایستگاه، راننده‌های خودروی برقی آن را روی نقشه می‌بینند و برای شارژ به شما مراجعه می‌کنند. تعرفه را خودتان مشخص می‌کنید و از همین راه می‌توانید درآمد داشته باشید.",
-    Icon: Zap,
+    title: "ایستگاه معمولی و ایستگاه خانگی",
+    text: "همه‌ی کاربران می‌توانند ایستگاه معمولی ثبت کنند. ثبت ایستگاه خانگی (شارژر خانه یا محل کار که در اختیار عموم می‌گذارید) مخصوص کاربران پرو و پلاس است.",
+    Icon: Home,
   },
   {
     n: "۳",
     title: "تأیید توسط ادمین",
-    text: "بعد از ارسال مشخصات، درخواست شما بررسی می‌شود. تا قبل از تأیید، ایستگاه روی نقشه قرار نمی‌گیرد. پس از تأیید ادمین، ایستگاه رسماً ثبت و برای همه قابل مشاهده می‌شود.",
+    text: "بعد از ارسال مشخصات، ادمین همه‌ی اطلاعات را بررسی می‌کند. تا قبل از تأیید، ایستگاه روی نقشه قرار نمی‌گیرد.",
     Icon: BadgeCheck,
   },
   {
     n: "۴",
-    title: "نمایش متفاوت روی نقشه",
-    text: "ایستگاه تأییدشده با پین طلایی و آیکون خانه نشان داده می‌شود تا از پین سبز ایستگاه‌های عمومی جدا باشد.",
+    title: "نمایش روی نقشه",
+    text: "ایستگاه معمولی تأییدشده برای همه دیده می‌شود. ایستگاه خانگی با پین طلایی و آیکون خانه فقط برای کاربران پرو و پلاس روی نقشه نمایش داده می‌شود.",
     Icon: MapPinned,
   },
 ];
@@ -72,6 +78,9 @@ function PinSample({ gold }) {
 }
 
 export default function MyStation() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const canHost = canHostHomeStation(user);
   const [step, setStep] = useState("intro");
 
   return (
@@ -96,12 +105,12 @@ export default function MyStation() {
           )}
           <Zap size={20} className="text-emerald-500" />
           <span className="text-base font-bold text-gray-900 dark:text-white">
-            ایستگاه من
+            ثبت ایستگاه
           </span>
         </div>
         <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
           {step === "intro"
-            ? "شارژر خودتان را ثبت کنید و بعد از تأیید روی نقشه دیده شود"
+            ? "ایستگاه شارژ را ثبت کنید و بعد از تأیید روی نقشه دیده شود"
             : "مشخصات ایستگاه را کامل کنید تا برای بررسی ارسال شود"}
         </p>
       </div>
@@ -110,12 +119,14 @@ export default function MyStation() {
         <div className="flex-1 overflow-y-auto px-4 py-5">
           <div className="mb-5 rounded-2xl bg-white p-4 dark:bg-gray-800">
             <h1 className="text-base font-bold text-gray-900 dark:text-white">
-              ایستگاه شخصی شما در ولت‌مپ
+              ثبت ایستگاه در ولت‌مپ
             </h1>
             <p className="mt-2 text-sm leading-7 text-gray-500 dark:text-gray-400">
-              این بخش برای صاحب شارژ است. ایستگاه خانگی یا محل کارتان را ثبت
-              می‌کنید، ادمین آن را بررسی می‌کند و بعد از تأیید، راننده‌ها همان
-              نقطه را روی نقشه با نشان مخصوص شما می‌بینند.
+              مشخصات ایستگاه را کامل وارد می‌کنید، ادمین آن را بررسی می‌کند و
+              بعد از تأیید، راننده‌ها آن را روی نقشه می‌بینند.
+              {canHost
+                ? " با اشتراک شما می‌توانید ایستگاه خانگی‌تان را هم در اختیار عموم بگذارید."
+                : " اشتراک رایگان فقط امکان ثبت ایستگاه معمولی را دارد."}
             </p>
           </div>
 
@@ -151,10 +162,33 @@ export default function MyStation() {
             <div className="flex flex-col items-center gap-1">
               <PinSample gold />
               <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
-                ایستگاه شما
+                ایستگاه خانگی (پرو و پلاس)
               </span>
             </div>
           </div>
+
+          {!canHost && (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-800 dark:text-amber-300">
+                <Lock size={15} />
+                ایستگاه خانگی مخصوص پرو و پلاس است
+              </p>
+              <p className="mt-1 text-xs leading-6 text-amber-700 dark:text-amber-200/80">
+                با اشتراک پرو یا پلاس می‌توانید ایستگاه خانگی‌تان را در اختیار
+                عموم بگذارید. با اشتراک رایگان فقط ایستگاه معمولی ثبت می‌شود.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  startGoldPayment({ navigate, returnTo: "/my-station" })
+                }
+                className="mt-3 flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white"
+              >
+                <Crown size={13} />
+                ارتقای اشتراک
+              </button>
+            </div>
+          )}
 
           <button
             type="button"
@@ -162,7 +196,7 @@ export default function MyStation() {
             className="mt-5 flex w-full items-center justify-center gap-1 rounded-2xl py-3.5 text-sm font-bold text-white"
             style={{ background: "#2ECC71" }}
           >
-            ثبت ایستگاه من
+            {canHost ? "ثبت ایستگاه" : "ثبت ایستگاه معمولی"}
             <ChevronLeft size={18} />
           </button>
         </div>
