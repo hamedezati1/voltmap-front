@@ -31,6 +31,8 @@ import {
 } from "../api";
 import { buildPinHTML } from "../components/MapView";
 import { useAuth } from "../context/AuthContext";
+import MapLocateTipModal from "../components/MapLocateTipModal";
+import { isMapLocateTipSeen, setMapLocateTipSeen } from "../lib/storage";
 import { filterStationsForUser } from "../lib/homeStations";
 import {
   buildViewportItems,
@@ -118,6 +120,14 @@ export default function RoutesPage() {
   const [stations, setStations] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [locating, setLocating] = useState(false);
+  // راهنمای دکمه‌ی موقعیت: فقط بار اول که کاربر وارد نقشه می‌شود
+  const [showLocateTip, setShowLocateTip] = useState(
+    () => !isMapLocateTipSeen(),
+  );
+  const closeLocateTip = useCallback(() => {
+    setMapLocateTipSeen();
+    setShowLocateTip(false);
+  }, []);
   const [routing, setRouting] = useState(false);
   const [routeInfo, setRouteInfo] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -696,6 +706,8 @@ export default function RoutesPage() {
           </label>
         </div>
       )}
+
+      {showLocateTip && <MapLocateTipModal onClose={closeLocateTip} />}
 
       {/* ─── دکمه موقعیت‌یابی (بالا می‌ره وقتی sheet بازه) ─── */}
       <div
