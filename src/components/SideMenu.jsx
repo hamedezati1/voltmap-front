@@ -18,6 +18,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { membershipLabel } from "../lib/membership";
 import { useTheme } from "../context/ThemeContext";
 import { version } from "../../package.json";
 
@@ -126,7 +127,7 @@ export default function SideMenu({ open, onClose }) {
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1">
               <Crown size={12} color="#fff" />
               <span className="text-[11px] font-semibold text-white">
-                {user.membership}
+                {membershipLabel(user.membership)}
               </span>
             </div>
           )}

@@ -8,7 +8,7 @@ import {
 import { setAccessToken, clearStoredSession } from '../api/tokenStore'
 import { normalizeMembership } from '../lib/membership'
 
-/** نام‌های قدیمی اشتراک (ویژه/طلایی) را به پرو/پلاس تبدیل می‌کند */
+/** نام قدیمی یا فارسی اشتراک را به free / pro / plus تبدیل می‌کند */
 const withMembership = (u) =>
   u ? { ...u, membership: normalizeMembership(u.membership) } : u
 

@@ -20,7 +20,7 @@ import {
 import StatCard from "./StatCard";
 import useIsMobile from "./useIsMobile";
 import { MEMBERSHIP_OPTIONS } from "./constants";
-import { isPremiumLabel } from "../../lib/membership";
+import { MEMBERSHIP, isPremiumLabel, membershipLabel } from "../../lib/membership";
 
 export default function UsersPanel({ stations, setStations }) {
   const isMobile = useIsMobile();
@@ -124,7 +124,7 @@ export default function UsersPanel({ stations, setStations }) {
         />
         <StatCard
           label="اشتراک پرو"
-          value={users.filter((u) => u.membership === "پرو").length}
+          value={users.filter((u) => u.membership === MEMBERSHIP.PRO).length}
           sub="کاربر فعال"
           subUp
           Icon={Crown}
@@ -133,7 +133,7 @@ export default function UsersPanel({ stations, setStations }) {
         />
         <StatCard
           label="اشتراک پلاس"
-          value={users.filter((u) => u.membership === "پلاس").length}
+          value={users.filter((u) => u.membership === MEMBERSHIP.PLUS).length}
           sub="کاربر فعال"
           subUp
           Icon={Crown}
@@ -358,7 +358,7 @@ export default function UsersPanel({ stations, setStations }) {
                         }}
                       >
                         {premium && <Crown size={12} />}
-                        {u.membership || "رایگان"}
+                        {membershipLabel(u.membership)}
                         <ChevronDown size={12} />
                       </button>
                       <span
@@ -556,7 +556,7 @@ export default function UsersPanel({ stations, setStations }) {
                         }}
                       >
                         {isPremiumLabel(u.membership) && <Crown size={11} />}
-                        {u.membership || "رایگان"}
+                        {membershipLabel(u.membership)}
                         <ChevronDown size={11} />
                       </button>
                     </div>
@@ -660,16 +660,16 @@ export default function UsersPanel({ stations, setStations }) {
                       cursor: "pointer",
                       background:
                         menuUser.membership === m
-                          ? m !== "رایگان"
+                          ? m !== MEMBERSHIP.FREE
                             ? "#fef9e7"
                             : "#f5f7fa"
                           : "transparent",
-                      color: m !== "رایگان" ? "#D97706" : "#333",
+                      color: m !== MEMBERSHIP.FREE ? "#D97706" : "#333",
                       fontWeight: menuUser.membership === m ? 700 : 400,
                       transition: "background 0.1s",
                     }}
                   >
-                    {m !== "رایگان" ? (
+                    {m !== MEMBERSHIP.FREE ? (
                       <Crown size={14} color="#F59E0B" />
                     ) : (
                       <div
@@ -681,7 +681,7 @@ export default function UsersPanel({ stations, setStations }) {
                         }}
                       />
                     )}
-                    {m}
+                    {membershipLabel(m)}
                     {menuUser.membership === m && (
                       <span
                         style={{

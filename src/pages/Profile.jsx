@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { fetchProfile, fetchVehicles, fetchFavoriteStations } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { membershipLabel } from "../lib/membership";
 import { useTheme } from "../context/ThemeContext";
 
 export default function Profile() {
@@ -154,7 +155,7 @@ export default function Profile() {
                     سطح اشتراک
                   </p>
                   <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">
-                    {profile?.membership || "رایگان"}
+                    {membershipLabel(profile?.membership)}
                   </p>
                 </div>
               </div>

@@ -1,22 +1,26 @@
 /**
  * سطح‌های اشتراک ولت‌مپ
  *
- * رایگان ← پرو ← پلاس   (پلاس بالاترین سطح است)
+ * مقدار ذخیره‌شده در API و دیتابیس: free ← pro ← plus
+ * متن نمایشی: رایگان ← پرو ← پلاس   (پلاس بالاترین سطح است)
  *
- * نام‌های قدیمی (ویژه / طلایی / gold / ...) هنوز ممکن است در localStorage یا
- * دیتابیس باشند؛ همه‌ی مقدارها از طریق normalizeMembership به نام جدید تبدیل می‌شوند.
- *
- * TODO: وقتی بک‌اند آماده شد، enum سطح اشتراک در دیتابیس هم باید
- *       به free / pro / plus تغییر کند (فعلاً برچسب فارسی ارسال می‌شود).
+ * نام‌های قدیمی (ویژه / طلایی / gold / برچسب فارسی) هنوز ممکن است در
+ * localStorage باشند؛ normalizeMembership همه‌شان را به کد جدید برمی‌گرداند.
  */
 
 export const MEMBERSHIP = {
-  FREE: "رایگان",
-  PRO: "پرو",
-  PLUS: "پلاس",
+  FREE: "free",
+  PRO: "pro",
+  PLUS: "plus",
 };
 
-/** ترتیب نمایش از پایین به بالا */
+export const MEMBERSHIP_LABELS = {
+  [MEMBERSHIP.FREE]: "رایگان",
+  [MEMBERSHIP.PRO]: "پرو",
+  [MEMBERSHIP.PLUS]: "پلاس",
+};
+
+/** ترتیب نمایش از پایین به بالا — مقدار ارسالی به API */
 export const MEMBERSHIP_OPTIONS = [
   MEMBERSHIP.FREE,
   MEMBERSHIP.PRO,
@@ -24,16 +28,14 @@ export const MEMBERSHIP_OPTIONS = [
 ];
 
 const ALIASES = {
-  // نام‌های جدید
-  رایگان: MEMBERSHIP.FREE,
   free: MEMBERSHIP.FREE,
-  پرو: MEMBERSHIP.PRO,
+  رایگان: MEMBERSHIP.FREE,
   pro: MEMBERSHIP.PRO,
-  پلاس: MEMBERSHIP.PLUS,
-  plus: MEMBERSHIP.PLUS,
-  // نام‌های قدیمی
+  پرو: MEMBERSHIP.PRO,
   ویژه: MEMBERSHIP.PRO,
   "حرفه‌ای": MEMBERSHIP.PRO,
+  plus: MEMBERSHIP.PLUS,
+  پلاس: MEMBERSHIP.PLUS,
   طلایی: MEMBERSHIP.PLUS,
   gold: MEMBERSHIP.PLUS,
 };
@@ -44,6 +46,11 @@ export function normalizeMembership(value) {
   }
   const key = String(value).trim();
   return ALIASES[key] ?? ALIASES[key.toLowerCase()] ?? MEMBERSHIP.FREE;
+}
+
+/** برچسب فارسی برای نمایش در UI */
+export function membershipLabel(value) {
+  return MEMBERSHIP_LABELS[normalizeMembership(value)];
 }
 
 export function membershipLevel(user) {

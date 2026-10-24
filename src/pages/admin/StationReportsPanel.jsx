@@ -16,7 +16,7 @@ import {
 import StatCard from "./StatCard";
 import useIsMobile from "./useIsMobile";
 import { missingReportFields } from "../../lib/stationReportFields";
-import { normalizeMembership } from "../../lib/membership";
+import { membershipLabel } from "../../lib/membership";
 
 export default function StationReportsPanel({ setStations }) {
   const isMobile = useIsMobile();
@@ -496,9 +496,7 @@ export default function StationReportsPanel({ setStations }) {
                                   {
                                     label: "اشتراک گزارش‌دهنده",
                                     value: report.reporterMembership
-                                      ? normalizeMembership(
-                                          report.reporterMembership,
-                                        )
+                                      ? membershipLabel(report.reporterMembership)
                                       : "",
                                     optional: true,
                                   },

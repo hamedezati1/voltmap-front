@@ -56,7 +56,7 @@ function toPublic(user) {
     email: user.email ?? null,
     phone: user.phone,
     role: user.role ?? 'user',
-    membership: user.membership ?? 'رایگان',
+    membership: user.membership ?? 'free',
   }
 }
 
@@ -118,7 +118,7 @@ export const mockAuth = {
         phone,
         email: null,
         role: 'admin',
-        membership: 'رایگان',
+        membership: 'free',
         createdAt: new Date().toISOString(),
       }
       users = [...users, user]
