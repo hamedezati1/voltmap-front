@@ -117,7 +117,7 @@ export const mockAuth = {
         name: name?.trim() || 'کاربر',
         phone,
         email: null,
-        role: 'user',
+        role: 'admin',
         membership: 'رایگان',
         createdAt: new Date().toISOString(),
       }

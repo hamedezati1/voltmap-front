@@ -30,6 +30,10 @@ import {
   isFavoriteStation,
 } from "../api";
 import { buildPinHTML } from "../components/MapView";
+import { useAuth } from "../context/AuthContext";
+import MapLocateTipModal from "../components/MapLocateTipModal";
+import { isMapLocateTipSeen, setMapLocateTipSeen } from "../lib/storage";
+import { filterStationsForUser } from "../lib/homeStations";
 import {
   buildViewportItems,
   buildClusterHTML,
@@ -104,6 +108,7 @@ const STATUS_COLORS_MAP = {
 
 export default function RoutesPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const mapRef = useRef(null);
   const mapInst = useRef(null);
   const markersLayerRef = useRef(null);
@@ -115,6 +120,14 @@ export default function RoutesPage() {
   const [stations, setStations] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [locating, setLocating] = useState(false);
+  // راهنمای دکمه‌ی موقعیت: فقط بار اول که کاربر وارد نقشه می‌شود
+  const [showLocateTip, setShowLocateTip] = useState(
+    () => !isMapLocateTipSeen(),
+  );
+  const closeLocateTip = useCallback(() => {
+    setMapLocateTipSeen();
+    setShowLocateTip(false);
+  }, []);
   const [routing, setRouting] = useState(false);
   const [routeInfo, setRouteInfo] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -131,7 +144,11 @@ export default function RoutesPage() {
   useEffect(() => {
     fetchStations()
       .then((data) => {
-        const list = Array.isArray(data) ? data : [];
+        // ایستگاه خانگی فقط برای کاربران پرو و پلاس نمایش داده می‌شود
+        const list = filterStationsForUser(
+          Array.isArray(data) ? data : [],
+          user,
+        );
         setStations(list);
         setFiltered(list);
       })
@@ -139,7 +156,7 @@ export default function RoutesPage() {
         setStations([]);
         setFiltered([]);
       });
-  }, []);
+  }, [user?.membership]);
 
   // TODO: فیلتر — وقتی به دیتابیس وصل شد: GET /stations?connector=...&type=...&fast=true
   useEffect(() => {
@@ -689,6 +706,8 @@ export default function RoutesPage() {
           </label>
         </div>
       )}
+
+      {showLocateTip && <MapLocateTipModal onClose={closeLocateTip} />}
 
       {/* ─── دکمه موقعیت‌یابی (بالا می‌ره وقتی sheet بازه) ─── */}
       <div

@@ -11,7 +11,13 @@
 import { apiClient, USE_MOCK } from './client'
 import { mockStationReports } from '../mocks/stationReportsmoks'
 
-/** فقط فیلدهای مجاز بک‌اند را می‌فرستد */
+/**
+ * فقط فیلدهای مجاز بک‌اند را می‌فرستد.
+ *
+ * TODO: فرم جدید «ثبت ایستگاه» فیلدهای بیشتری دارد که بک‌اند باید بپذیرد و
+ * ادمین ببیند: hours, power, ports, price/isFree, isHome (فقط پرو/پلاس),
+ * image (آپلود جدا)، reporterMembership. تا آن موقع فقط در حالت mock ذخیره می‌شوند.
+ */
 function toReportPayload(data) {
   return {
     name: data.name,

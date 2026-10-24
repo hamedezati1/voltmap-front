@@ -1,0 +1,48 @@
+/* ریسپانسیو پنل ادمین — فقط کلاس‌هایی که با inline style قابل بیان نیستند */
+
+/* جدول‌ها: اسکرول افقی داخل خود کارت، نه کل صفحه */
+.adm-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.adm-table-wrap > table {
+  width: 100%;
+}
+.adm-table th,
+.adm-table td {
+  white-space: nowrap;
+}
+.adm-table-wrap::-webkit-scrollbar {
+  height: 6px;
+}
+.adm-table-wrap::-webkit-scrollbar-thumb {
+  background: #d5d9df;
+  border-radius: 3px;
+}
+
+/* دراور سایدبار در موبایل: ارتفاع واقعی ویوپورت (نه 100vh که زیر نوار مرورگر می‌رود) */
+.adm-drawer > div {
+  height: 100% !important;
+}
+
+/* جلوگیری از زوم خودکار iOS روی فوکوس input */
+@media (max-width: 900px) {
+  .adm-root input,
+  .adm-root select,
+  .adm-root textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* متن‌های طولانی کانتینر را نشکنند */
+.adm-root {
+  overflow-wrap: anywhere;
+}
+.adm-root table,
+.adm-root .adm-nowrap {
+  overflow-wrap: normal;
+}

@@ -25,6 +25,8 @@ function toStationPayload(data) {
     'code', 'name', 'operator', 'province', 'city', 'district', 'address',
     'lat', 'lng', 'acPorts', 'dcPorts', 'maxPower', 'connectors', 'parkingSpots',
     'isFree', 'pricePerKwh', 'isActive', 'isVerified', 'isOwnerStation', 'hours', 'phone',
+    // ایستگاه خانگی کاربران پرو/پلاس — TODO: ستون‌های is_home_station / owner_name / owner_id / source_report_id در دیتابیس
+    'isHomeStation', 'ownerName', 'ownerId', 'sourceReportId',
     'image1', 'image2', 'image3', 'description', 'dataUpdatedAt', 'status',
     // سازگاری با فرم قدیمی
     'type', 'connector', 'power', 'ports', 'price', 'image',

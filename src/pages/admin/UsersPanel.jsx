@@ -18,9 +18,12 @@ import {
   updateUserMembership,
 } from "../../api";
 import StatCard from "./StatCard";
+import useIsMobile from "./useIsMobile";
 import { MEMBERSHIP_OPTIONS } from "./constants";
+import { isPremiumLabel } from "../../lib/membership";
 
 export default function UsersPanel({ stations, setStations }) {
+  const isMobile = useIsMobile();
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
   const [membershipMenu, setMembershipMenu] = useState(null);
@@ -105,9 +108,9 @@ export default function UsersPanel({ stations, setStations }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
-          gap: 16,
-          marginBottom: 24,
+          gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(4,1fr)",
+          gap: isMobile ? 10 : 16,
+          marginBottom: isMobile ? 14 : 24,
         }}
       >
         <StatCard
@@ -120,8 +123,8 @@ export default function UsersPanel({ stations, setStations }) {
           bg="#EBF5FB"
         />
         <StatCard
-          label="اشتراک ویژه"
-          value={users.filter((u) => u.membership === "ویژه").length}
+          label="اشتراک پرو"
+          value={users.filter((u) => u.membership === "پرو").length}
           sub="کاربر فعال"
           subUp
           Icon={Crown}
@@ -129,8 +132,8 @@ export default function UsersPanel({ stations, setStations }) {
           bg="#fef9e7"
         />
         <StatCard
-          label="اشتراک طلایی"
-          value={users.filter((u) => u.membership === "طلایی").length}
+          label="اشتراک پلاس"
+          value={users.filter((u) => u.membership === "پلاس").length}
           sub="کاربر فعال"
           subUp
           Icon={Crown}
@@ -160,12 +163,13 @@ export default function UsersPanel({ stations, setStations }) {
       >
         <div
           style={{
-            padding: "18px 22px",
+            padding: isMobile ? "14px" : "18px 22px",
             borderBottom: "1px solid #f5f7fa",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            gap: 16,
+            flexWrap: "wrap",
+            gap: isMobile ? 10 : 16,
           }}
         >
           <span
@@ -177,7 +181,13 @@ export default function UsersPanel({ stations, setStations }) {
           >
             کاربران ثبت‌نام‌شده
           </span>
-          <div style={{ position: "relative" }}>
+          <div
+            style={{
+              position: "relative",
+              flex: isMobile ? "1 1 100%" : "0 0 auto",
+              minWidth: 0,
+            }}
+          >
             <Search
               size={14}
               color="#aaa"
@@ -196,14 +206,14 @@ export default function UsersPanel({ stations, setStations }) {
               }}
               placeholder="جستجو نام، ایمیل، موبایل..."
               style={{
-                border: "1px solid rgba(255,255,255,0.12)",
+                border: "1px solid #e5e7eb",
                 borderRadius: 10,
                 padding: "7px 32px 7px 12px",
                 fontSize: 12,
                 fontFamily: "Vazirmatn",
                 outline: "none",
-                width: 220,
-                background: "rgba(255,255,255,0.06)",
+                width: isMobile ? "100%" : 220,
+                background: "#f8f9fb",
                 color: "#1a1a1a",
               }}
             />
@@ -225,7 +235,171 @@ export default function UsersPanel({ stations, setStations }) {
             </p>
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <>
+          {isMobile && (
+            <div>
+              {filteredUsers.map((u) => {
+                const premium =
+                  isPremiumLabel(u.membership);
+                return (
+                  <div
+                    key={u.id}
+                    style={{ padding: 14, borderTop: "1px solid #f5f7fa" }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    >
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: "50%",
+                          background: "linear-gradient(135deg,#3498DB,#1a5a8a)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          color: "#fff",
+                          fontSize: 15,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {(u.name || "؟")[0]}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "#1a1a1a",
+                          }}
+                        >
+                          {u.name || "—"}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                            fontSize: 12,
+                            color: "#888",
+                            marginTop: 2,
+                          }}
+                        >
+                          <Mail size={12} color="#aaa" style={{ flexShrink: 0 }} />
+                          <span
+                            style={{
+                              minWidth: 0,
+                              direction: "ltr",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {u.email || "—"}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteUser(u.id)}
+                        title="حذف کاربر"
+                        aria-label="حذف کاربر"
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 9,
+                          background: "#fef2f2",
+                          border: "1px solid #fecaca",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Trash2 size={15} color="#E74C3C" />
+                      </button>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 10,
+                        marginTop: 10,
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setMembershipMenuPos({
+                            top: rect.bottom + 6,
+                            left: Math.max(
+                              8,
+                              Math.min(rect.left, window.innerWidth - 156),
+                            ),
+                          });
+                          setMembershipMenu(membershipMenu === u.id ? null : u.id);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          padding: "6px 12px",
+                          borderRadius: 20,
+                          border: "1.5px solid",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          fontFamily: "Vazirmatn",
+                          background: premium ? "#fef9e7" : "#f5f5f5",
+                          borderColor: premium ? "#F59E0B" : "#e0e0e0",
+                          color: premium ? "#D97706" : "#888",
+                        }}
+                      >
+                        {premium && <Crown size={12} />}
+                        {u.membership || "رایگان"}
+                        <ChevronDown size={12} />
+                      </button>
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontSize: 12,
+                          color: "#666",
+                        }}
+                      >
+                        <Phone size={12} color="#aaa" />
+                        {u.phone || "—"}
+                      </span>
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontSize: 12,
+                          color: "#aaa",
+                          marginRight: "auto",
+                        }}
+                      >
+                        <Calendar size={12} />
+                        {u.createdAt
+                          ? new Date(u.createdAt).toLocaleDateString("fa-IR")
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!isMobile && (
+          <div className="adm-table-wrap">
+          <table
+            className="adm-table"
+            style={{ width: "100%", minWidth: 760, borderCollapse: "collapse" }}
+          >
             <thead>
               <tr style={{ background: "#f8f9fb" }}>
                 {[
@@ -346,7 +520,11 @@ export default function UsersPanel({ stations, setStations }) {
                           const rect = e.currentTarget.getBoundingClientRect();
                           setMembershipMenuPos({
                             top: rect.bottom + 6,
-                            left: rect.left,
+                            // منو از لبه‌ی صفحه بیرون نزند
+                            left: Math.max(
+                              8,
+                              Math.min(rect.left, window.innerWidth - 156),
+                            ),
                           });
                           setMembershipMenu(
                             membershipMenu === u.id ? null : u.id,
@@ -364,21 +542,20 @@ export default function UsersPanel({ stations, setStations }) {
                           cursor: "pointer",
                           fontFamily: "Vazirmatn",
                           background:
-                            u.membership === "ویژه" || u.membership === "طلایی"
+                            isPremiumLabel(u.membership)
                               ? "#fef9e7"
                               : "#f5f5f5",
                           borderColor:
-                            u.membership === "ویژه" || u.membership === "طلایی"
+                            isPremiumLabel(u.membership)
                               ? "#F59E0B"
                               : "#e0e0e0",
                           color:
-                            u.membership === "ویژه" || u.membership === "طلایی"
+                            isPremiumLabel(u.membership)
                               ? "#D97706"
                               : "#888",
                         }}
                       >
-                        {(u.membership === "ویژه" ||
-                          u.membership === "طلایی") && <Crown size={11} />}
+                        {isPremiumLabel(u.membership) && <Crown size={11} />}
                         {u.membership || "رایگان"}
                         <ChevronDown size={11} />
                       </button>
@@ -423,6 +600,9 @@ export default function UsersPanel({ stations, setStations }) {
               ))}
             </tbody>
           </table>
+          </div>
+          )}
+          </>
         )}
       </div>
 
@@ -449,6 +629,7 @@ export default function UsersPanel({ stations, setStations }) {
                   boxShadow: "0 4px 24px rgba(0,0,0,0.18)",
                   border: "1px solid #eee",
                   minWidth: 140,
+                  maxWidth: "calc(100vw - 16px)",
                   overflow: "hidden",
                 }}
               >
@@ -530,7 +711,7 @@ export default function UsersPanel({ stations, setStations }) {
       >
         <div
           style={{
-            padding: "18px 22px",
+            padding: isMobile ? "14px" : "18px 22px",
             borderBottom: "1px solid #f5f7fa",
             display: "flex",
             justifyContent: "space-between",
@@ -549,7 +730,7 @@ export default function UsersPanel({ stations, setStations }) {
           <span
             style={{
               fontSize: 12,
-              color: "rgba(255,255,255,0.35)",
+              color: "#aaa",
             }}
           >
             {allReviews.length} نظر
@@ -557,7 +738,7 @@ export default function UsersPanel({ stations, setStations }) {
         </div>
         <div
           style={{
-            padding: 22,
+            padding: isMobile ? 14 : 22,
             maxHeight: 420,
             overflowY: "auto",
             scrollbarWidth: "thin",
@@ -581,7 +762,7 @@ export default function UsersPanel({ stations, setStations }) {
                 key={r.id || i}
                 style={{
                   display: "flex",
-                  gap: 16,
+                  gap: isMobile ? 10 : 16,
                   paddingBottom: 18,
                   marginBottom: 18,
                   borderBottom: "1px solid #f5f7fa",
@@ -589,8 +770,8 @@ export default function UsersPanel({ stations, setStations }) {
               >
                 <div
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: isMobile ? 36 : 44,
+                    height: isMobile ? 36 : 44,
                     borderRadius: "50%",
                     background: "#EBF5FB",
                     display: "flex",
@@ -601,12 +782,13 @@ export default function UsersPanel({ stations, setStations }) {
                 >
                   <Users size={18} color="#3498DB" />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      gap: 8,
                       marginBottom: 6,
                     }}
                   >
@@ -615,11 +797,12 @@ export default function UsersPanel({ stations, setStations }) {
                         fontSize: 14,
                         fontWeight: 600,
                         color: "#1a1a1a",
+                        minWidth: 0,
                       }}
                     >
                       {r.user || r.userName || r.user_name}
                     </span>
-                    <div style={{ display: "flex", gap: 2 }}>
+                    <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
                       {[1, 2, 3, 4, 5].map((n) => (
                         <Star
                           key={n}
@@ -645,6 +828,7 @@ export default function UsersPanel({ stations, setStations }) {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
+                      flexWrap: "wrap",
                       gap: 8,
                     }}
                   >
@@ -653,6 +837,7 @@ export default function UsersPanel({ stations, setStations }) {
                         display: "flex",
                         alignItems: "center",
                         gap: 5,
+                        minWidth: 0,
                       }}
                     >
                       <MapPin size={12} color="#2ECC71" />
@@ -675,6 +860,7 @@ export default function UsersPanel({ stations, setStations }) {
                         border: "1px solid #f5c2c0",
                         background: "#fef2f2",
                         color: "#E74C3C",
+                        flexShrink: 0,
                         borderRadius: 8,
                         padding: "4px 10px",
                         fontSize: 12,

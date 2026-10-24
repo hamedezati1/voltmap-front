@@ -13,6 +13,7 @@ import { apiClient, USE_MOCK } from './client'
 import { normalizeReview } from './normalize'
 import { mockStations } from '../mocks/stations'
 import { updateUserMembership as mockUpdateMembership, getStoredSession } from '../mocks/auth'
+import { normalizeMembership } from '../lib/membership'
 
 const USERS_KEY = 'voltmap_users'
 
@@ -85,9 +86,15 @@ export async function fetchUsageReport(days = 7) {
 export async function fetchUsers() {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 200))
-    return readMockUsers().map(({ password, ...u }) => u)
+    return readMockUsers().map(({ password, ...u }) => ({
+      ...u,
+      membership: normalizeMembership(u.membership),
+    }))
   }
-  return apiClient('/admin/users')
+  const users = await apiClient('/admin/users')
+  return Array.isArray(users)
+    ? users.map((u) => ({ ...u, membership: normalizeMembership(u.membership) }))
+    : users
 }
 
 export async function updateUserMembership(userId, membership) {

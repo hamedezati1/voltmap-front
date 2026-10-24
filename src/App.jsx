@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import StationDetail from "./pages/StationDetail";
@@ -27,11 +27,19 @@ import {
   AuthRoute,
 } from "./components/RouteGuards";
 import { fetchStations } from "./api";
+import { useAuth } from "./context/AuthContext";
+import { filterStationsForUser } from "./lib/homeStations";
 
 export default function App() {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const location = useLocation();
+  // ایستگاه خانگی فقط برای پرو/پلاس دیده می‌شود (ادمین همه را می‌بیند)
+  const visibleStations = useMemo(
+    () => filterStationsForUser(stations, user),
+    [stations, user],
+  );
   const isAdmin = location.pathname.startsWith("/admin");
 
   useEffect(() => {
@@ -107,7 +115,7 @@ export default function App() {
             path="/"
             element={
               <Home
-                stations={stations}
+                stations={visibleStations}
                 setStations={setStations}
                 loading={loading}
               />
@@ -116,7 +124,10 @@ export default function App() {
           <Route
             path="/station/:id"
             element={
-              <StationDetail stations={stations} setStations={setStations} />
+              <StationDetail
+                stations={visibleStations}
+                setStations={setStations}
+              />
             }
           />
           <Route path="/routes" element={<Routes_ />} />

@@ -13,7 +13,7 @@ import {
   PowerOff,
 } from "lucide-react";
 
-export const MEMBERSHIP_OPTIONS = ["رایگان", "ویژه", "طلایی"];
+export { MEMBERSHIP_OPTIONS } from "../../lib/membership";
 
 export const NAV = [
   { key: "dashboard", Icon: LayoutDashboard, label: "داشبورد" },
