@@ -5,7 +5,8 @@ import StationDetail from "./pages/StationDetail";
 import Admin from "./pages/Admin";
 import Routes_ from "./pages/Routes";
 import Trip from "./pages/trip";
-import GoldPaymentPlaceholder from "./pages/trip/GoldPaymentPlaceholder";
+import Plans from "./pages/Plans";
+import PaymentResult from "./pages/PaymentResult";
 import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
 import MyStation from "./pages/MyStation";
@@ -132,7 +133,9 @@ export default function App() {
           />
           <Route path="/routes" element={<Routes_ />} />
           <Route path="/trip" element={<Trip />} />
-          <Route path="/trip/upgrade" element={<GoldPaymentPlaceholder />} />
+          <Route path="/plans" element={<Plans />} />
+          <Route path="/trip/upgrade" element={<Plans />} />
+          <Route path="/payment/result" element={<PaymentResult />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/my-station" element={<MyStation />} />
           <Route path="/contact" element={<Contact />} />

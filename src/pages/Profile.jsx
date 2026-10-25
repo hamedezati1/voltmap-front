@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 import { fetchProfile, fetchVehicles, fetchFavoriteStations } from "../api";
 import { useAuth } from "../context/AuthContext";
-import { membershipLabel } from "../lib/membership";
+import { membershipLabel, isPaidMember } from "../lib/membership";
+import { formatDate } from "../lib/money";
 import { useTheme } from "../context/ThemeContext";
 
 export default function Profile() {
@@ -63,6 +64,8 @@ export default function Profile() {
       .finally(() => setFavoritesLoading(false));
   }, []);
 
+  const shownMember = profile || user
+  const expiryLabel = formatDate(shownMember?.membershipExpiresAt)
   const displayName = user?.name || profile?.name;
   const displayEmail = user?.email || profile?.email;
   const displayPhone = user?.phone || profile?.phone;
@@ -150,14 +153,26 @@ export default function Profile() {
                 >
                   <Crown size={20} color="#fff" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     سطح اشتراک
                   </p>
                   <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">
-                    {membershipLabel(profile?.membership)}
+                    {membershipLabel(shownMember?.membership)}
                   </p>
+                  {isPaidMember(shownMember) && expiryLabel && (
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      تا {expiryLabel}
+                    </p>
+                  )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/plans")}
+                  className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-white"
+                >
+                  خرید اشتراک
+                </button>
               </div>
             </section>
 
@@ -389,6 +404,11 @@ export default function Profile() {
             {/* Quick actions */}
             <section className="mt-4 rounded-2xl bg-white shadow-sm dark:bg-gray-800 dark:text-white overflow-visible">
               {[
+                {
+                  Icon: Crown,
+                  label: "خرید اشتراک",
+                  action: () => navigate("/plans"),
+                },
                 {
                   Icon: CircleUserRound,
                   label: "اطلاعات شخصی",

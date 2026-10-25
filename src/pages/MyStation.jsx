@@ -7,12 +7,11 @@ import {
   MapPinned,
   ChevronLeft,
   ArrowRight,
-  Crown,
   Lock,
 } from "lucide-react";
 import StationReportForm from "../components/StationReportForm";
 import { useAuth } from "../context/AuthContext";
-import { canHostHomeStation } from "../lib/membership";
+import { isPaidMember } from "../lib/membership";
 import { startGoldPayment } from "./trip/startGoldPayment";
 
 const STEPS = [
@@ -24,8 +23,8 @@ const STEPS = [
   },
   {
     n: "۲",
-    title: "ایستگاه معمولی و ایستگاه خانگی",
-    text: "همه‌ی کاربران می‌توانند ایستگاه معمولی ثبت کنند. ثبت ایستگاه خانگی (شارژر خانه یا محل کار که در اختیار عموم می‌گذارید) مخصوص کاربران پرو و پلاس است.",
+    title: "نیاز به اشتراک پرو",
+    text: "ثبت هر ایستگاه جدید فقط با اشتراک پرو یا پلاس فعال ممکن است. بعد از تأیید ادمین روی نقشه دیده می‌شود.",
     Icon: Home,
   },
   {
@@ -80,7 +79,7 @@ function PinSample({ gold }) {
 export default function MyStation() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canHost = canHostHomeStation(user);
+  const canSubmit = isPaidMember(user);
   const [step, setStep] = useState("intro");
 
   return (
@@ -124,9 +123,9 @@ export default function MyStation() {
             <p className="mt-2 text-sm leading-7 text-gray-500 dark:text-gray-400">
               مشخصات ایستگاه را کامل وارد می‌کنید، ادمین آن را بررسی می‌کند و
               بعد از تأیید، راننده‌ها آن را روی نقشه می‌بینند.
-              {canHost
-                ? " با اشتراک شما می‌توانید ایستگاه خانگی‌تان را هم در اختیار عموم بگذارید."
-                : " اشتراک رایگان فقط امکان ثبت ایستگاه معمولی را دارد."}
+              {canSubmit
+                ? " با اشتراک شما می‌توانید ایستگاه را ثبت کنید و ایستگاه خانگی را هم در اختیار عموم بگذارید."
+                : " برای ثبت ایستگاه باید اشتراک پرو تهیه کنید."}
             </p>
           </div>
 
@@ -167,36 +166,31 @@ export default function MyStation() {
             </div>
           </div>
 
-          {!canHost && (
+          {!canSubmit && (
             <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
               <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-800 dark:text-amber-300">
                 <Lock size={15} />
-                ایستگاه خانگی مخصوص پرو و پلاس است
+                ثبت ایستگاه مخصوص اشتراک پرو است
               </p>
               <p className="mt-1 text-xs leading-6 text-amber-700 dark:text-amber-200/80">
-                با اشتراک پرو یا پلاس می‌توانید ایستگاه خانگی‌تان را در اختیار
-                عموم بگذارید. با اشتراک رایگان فقط ایستگاه معمولی ثبت می‌شود.
+                قبل از رفتن به درگاه، پلن یک‌ماهه، شش‌ماهه یا یک‌ساله را انتخاب می‌کنید.
               </p>
-              <button
-                type="button"
-                onClick={() =>
-                  startGoldPayment({ navigate, returnTo: "/my-station" })
-                }
-                className="mt-3 flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white"
-              >
-                <Crown size={13} />
-                ارتقای اشتراک
-              </button>
             </div>
           )}
 
           <button
             type="button"
-            onClick={() => setStep("form")}
+            onClick={() => {
+              if (!canSubmit) {
+                startGoldPayment({ navigate, returnTo: "/my-station" })
+                return
+              }
+              setStep("form")
+            }}
             className="mt-5 flex w-full items-center justify-center gap-1 rounded-2xl py-3.5 text-sm font-bold text-white"
             style={{ background: "#2ECC71" }}
           >
-            {canHost ? "ثبت ایستگاه" : "ثبت ایستگاه معمولی"}
+            {canSubmit ? "ثبت ایستگاه" : "تهیه اشتراک و ثبت ایستگاه"}
             <ChevronLeft size={18} />
           </button>
         </div>

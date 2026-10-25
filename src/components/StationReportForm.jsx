@@ -222,6 +222,11 @@ export default function StationReportForm({ onClose, hideHeader = false }) {
   };
 
   const handleSubmit = async () => {
+    if (!canHost) {
+      startGoldPayment({ navigate, returnTo: "/my-station" })
+      return
+    }
+
     const fieldErrors = validate();
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length > 0) {
@@ -384,8 +389,7 @@ export default function StationReportForm({ onClose, hideHeader = false }) {
         <div className="flex items-start gap-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
           <Lock size={14} className="mt-0.5 text-gray-400 flex-shrink-0" />
           <div className="text-xs leading-6 text-gray-500 dark:text-gray-400">
-            با اشتراک رایگان فقط ایستگاه معمولی ثبت می‌شود. ثبت ایستگاه خانگی
-            مخصوص کاربران پرو و پلاس است.{" "}
+            با اشتراک رایگان امکان ثبت ایستگاه نیست.{" "}
             <button
               type="button"
               onClick={() =>

@@ -75,6 +75,10 @@ export default function Trip() {
         warnings: Array.isArray(plan?.warnings) ? plan.warnings : [],
       })
     } catch (err) {
+      if (err?.data?.error?.code === 'SUBSCRIPTION_REQUIRED') {
+        startGoldPayment({ navigate, returnTo: '/trip' })
+        return
+      }
       setResult({
         feasible: false,
         totalDist: 0,
@@ -86,7 +90,7 @@ export default function Trip() {
     } finally {
       setPlanning(false)
     }
-  }, [origin, destination, userRange, currentBattery, selectedVehicle])
+  }, [origin, destination, userRange, currentBattery, selectedVehicle, navigate])
 
   if (step === 'intro') {
     return <TripIntro onStart={handleStart} />

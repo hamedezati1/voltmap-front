@@ -57,10 +57,14 @@ export function membershipLevel(user) {
   return normalizeMembership(user?.membership);
 }
 
-/** کاربر پرو یا پلاس */
+/** کاربر پرو یا پلاس با اشتراک هنوز معتبر. ادمین بدون خرید هم دسترسی دارد. */
 export function isPaidMember(user) {
+  if (user?.role === "admin") return true;
   const level = membershipLevel(user);
-  return level === MEMBERSHIP.PRO || level === MEMBERSHIP.PLUS;
+  if (level !== MEMBERSHIP.PRO && level !== MEMBERSHIP.PLUS) return false;
+  if (!user?.membershipExpiresAt) return true;
+  const time = new Date(user.membershipExpiresAt).getTime();
+  return Number.isFinite(time) && time > Date.now();
 }
 
 export function isPlusMember(user) {
