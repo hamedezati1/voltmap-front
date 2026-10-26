@@ -17,14 +17,14 @@ import { startGoldPayment } from "./trip/startGoldPayment";
 const STEPS = [
   {
     n: "۱",
-    title: "ثبت ایستگاه",
-    text: "اگر ایستگاه شارژ دارید، می‌توانید مشخصات کامل آن را در ولت‌مپ ثبت کنید. همه‌ی فیلدهای فرم الزامی است و تا کامل نشود، ثبت انجام نمی‌شود.",
+    title: "انتخاب نوع ایستگاه",
+    text: "اول مشخص می‌کنید ایستگاه عمومی است یا خانگی. عمومی را هر عضویت می‌تواند ثبت کند. خانگی فقط با اشتراک پرو یا پلاس فعال است.",
     Icon: Zap,
   },
   {
     n: "۲",
-    title: "نیاز به اشتراک پرو",
-    text: "ثبت هر ایستگاه جدید فقط با اشتراک پرو یا پلاس فعال ممکن است. بعد از تأیید ادمین روی نقشه دیده می‌شود.",
+    title: "تکمیل مشخصات",
+    text: "همه‌ی فیلدهای فرم الزامی است و تا کامل نشود، ثبت انجام نمی‌شود.",
     Icon: Home,
   },
   {
@@ -36,7 +36,7 @@ const STEPS = [
   {
     n: "۴",
     title: "نمایش روی نقشه",
-    text: "ایستگاه معمولی تأییدشده برای همه دیده می‌شود. ایستگاه خانگی با پین طلایی و آیکون خانه فقط برای کاربران پرو و پلاس روی نقشه نمایش داده می‌شود.",
+    text: "ایستگاه عمومی تأییدشده برای همه دیده می‌شود. ایستگاه خانگی با پین طلایی و آیکون خانه فقط برای کاربران پرو و پلاس روی نقشه نمایش داده می‌شود.",
     Icon: MapPinned,
   },
 ];
@@ -79,8 +79,9 @@ function PinSample({ gold }) {
 export default function MyStation() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canSubmit = isPaidMember(user);
+  const canSubmitHome = isPaidMember(user);
   const [step, setStep] = useState("intro");
+  const [kind, setKind] = useState("public");
 
   return (
     <div
@@ -121,11 +122,10 @@ export default function MyStation() {
               ثبت ایستگاه در ولت‌مپ
             </h1>
             <p className="mt-2 text-sm leading-7 text-gray-500 dark:text-gray-400">
-              مشخصات ایستگاه را کامل وارد می‌کنید، ادمین آن را بررسی می‌کند و
-              بعد از تأیید، راننده‌ها آن را روی نقشه می‌بینند.
-              {canSubmit
-                ? " با اشتراک شما می‌توانید ایستگاه را ثبت کنید و ایستگاه خانگی را هم در اختیار عموم بگذارید."
-                : " برای ثبت ایستگاه باید اشتراک پرو تهیه کنید."}
+            مشخصات ایستگاه را کامل وارد می‌کنید، ادمین آن را بررسی می‌کند و
+            بعد از تأیید روی نقشه دیده می‌شود. ایستگاه عمومی برای همه است.
+            ایستگاه خانگی فقط با اشتراک پرو ثبت می‌شود و بعد از تأیید فقط
+            همان اشتراک آن را روی نقشه می‌بیند.
             </p>
           </div>
 
@@ -166,37 +166,52 @@ export default function MyStation() {
             </div>
           </div>
 
-          {!canSubmit && (
+          {!canSubmitHome && (
             <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
               <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-800 dark:text-amber-300">
                 <Lock size={15} />
-                ثبت ایستگاه مخصوص اشتراک پرو است
+                ثبت ایستگاه خانگی مخصوص اشتراک پرو است
               </p>
               <p className="mt-1 text-xs leading-6 text-amber-700 dark:text-amber-200/80">
-                قبل از رفتن به درگاه، پلن یک‌ماهه، شش‌ماهه یا یک‌ساله را انتخاب می‌کنید.
+                ایستگاه عمومی را بدون اشتراک هم می‌توانید بفرستید. برای خانگی،
+                قبل از رفتن به درگاه پلن یک‌ماهه، شش‌ماهه یا یک‌ساله را انتخاب می‌کنید.
               </p>
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              if (!canSubmit) {
-                startGoldPayment({ navigate, returnTo: "/my-station" })
-                return
-              }
-              setStep("form")
-            }}
-            className="mt-5 flex w-full items-center justify-center gap-1 rounded-2xl py-3.5 text-sm font-bold text-white"
-            style={{ background: "#2ECC71" }}
-          >
-            {canSubmit ? "ثبت ایستگاه" : "تهیه اشتراک و ثبت ایستگاه"}
-            <ChevronLeft size={18} />
-          </button>
+          <div className="mt-5 grid grid-cols-1 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setKind("public");
+                setStep("form");
+              }}
+              className="flex w-full items-center justify-center gap-1 rounded-2xl py-3.5 text-sm font-bold text-white"
+              style={{ background: "#2ECC71" }}
+            >
+              ثبت ایستگاه عمومی
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!canSubmitHome) {
+                  startGoldPayment({ navigate, returnTo: "/my-station" });
+                  return;
+                }
+                setKind("home");
+                setStep("form");
+              }}
+              className="flex w-full items-center justify-center gap-1 rounded-2xl border border-amber-300 bg-amber-50 py-3.5 text-sm font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
+            >
+              {canSubmitHome ? "ثبت ایستگاه خانگی" : "تهیه اشتراک و ثبت ایستگاه خانگی"}
+              <ChevronLeft size={18} />
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <StationReportForm hideHeader />
+          <StationReportForm hideHeader kind={kind} />
         </div>
       )}
     </div>

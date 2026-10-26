@@ -208,7 +208,7 @@ export default function Admin({ stations, setStations }) {
           {active === "reports" && <ReportsPanel stations={publicStations} />}
           {active === "billing" && <BillingPanel />}
           {active === "chargers" && (
-            <ChargersPanel stations={stations} setStations={setStations} />
+            <ChargersPanel setStations={setStations} />
           )}
           {active === "settings" && <ComingSoonPanel />}
         </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Home,
   Search,
@@ -11,7 +11,12 @@ import {
   Wrench,
   User,
 } from "lucide-react";
-import { deleteStation, updateStation, storageUrl } from "../../api";
+import {
+  deleteHomeStation,
+  fetchHomeStations,
+  updateHomeStation,
+  storageUrl,
+} from "../../api";
 import { isHomeStation } from "../../lib/homeStations";
 import StatCard from "./StatCard";
 import useIsMobile from "./useIsMobile";
@@ -56,16 +61,35 @@ function InfoCell({ label, value, ltr = false }) {
  *    (بعد از تأیید ادمین در «ایستگاه‌های گزارش‌شده» اینجا قرار می‌گیرند)
  *  - بخش دوم: جای قابلیت‌های آینده
  */
-export default function ChargersPanel({ stations, setStations }) {
+export default function ChargersPanel({ setStations }) {
   const isMobile = useIsMobile();
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [homeStations, setHomeStations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const homeStations = useMemo(
-    () => (stations || []).filter(isHomeStation),
-    [stations],
-  );
+  useEffect(() => {
+    let alive = true;
+    fetchHomeStations()
+      .then((list) => {
+        if (!alive) return;
+        setHomeStations(list);
+        setStations((prev) => {
+          const others = (prev || []).filter((station) => !isHomeStation(station));
+          return [...list, ...others];
+        });
+      })
+      .catch(() => {
+        if (alive) setHomeStations([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [setStations]);
 
   const filtered = useMemo(() => {
     const q = search.trim();
@@ -85,16 +109,13 @@ export default function ChargersPanel({ stations, setStations }) {
   const handleToggleActive = async (station) => {
     setBusyId(station.id);
     try {
-      const updated = await updateStation(station.id, {
+      const updated = await updateHomeStation(station.id, {
         isActive: station.isActive === false,
       });
-      setStations((prev) =>
-        prev.map((s) =>
-          s.id === station.id
-            ? { ...s, ...updated, isActive: station.isActive === false }
-            : s,
-        ),
-      );
+      const nextActive = station.isActive === false;
+      const next = { ...station, ...updated, isActive: nextActive };
+      setHomeStations((prev) => prev.map((s) => (s.id === station.id ? next : s)));
+      setStations((prev) => prev.map((s) => (s.id === station.id ? { ...s, ...next } : s)));
     } catch (err) {
       alert(err.message || "خطا در تغییر وضعیت نمایش");
     } finally {
@@ -106,7 +127,8 @@ export default function ChargersPanel({ stations, setStations }) {
     if (!window.confirm(`ایستگاه خانگی «${station.name}» حذف شود؟`)) return;
     setBusyId(station.id);
     try {
-      await deleteStation(station.id);
+      await deleteHomeStation(station.id);
+      setHomeStations((prev) => prev.filter((s) => s.id !== station.id));
       setStations((prev) => prev.filter((s) => s.id !== station.id));
     } catch (err) {
       alert(err.message || "خطا در حذف ایستگاه");
@@ -278,7 +300,11 @@ export default function ChargersPanel({ stations, setStations }) {
               </div>
             </div>
 
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div style={{ padding: 40, textAlign: "center", color: "#888" }}>
+                در حال بارگذاری شارژرهای خانگی...
+              </div>
+            ) : filtered.length === 0 ? (
               <div style={{ padding: isMobile ? 36 : 60, textAlign: "center" }}>
                 <Home size={40} color="#ddd" style={{ margin: "0 auto 12px" }} />
                 <div style={{ fontSize: 14, color: "#888" }}>

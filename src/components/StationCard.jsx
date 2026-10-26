@@ -83,7 +83,7 @@ export default function StationCard({ station }) {
           )}
           {isOwnerStation(station) && (
             <span style={{ fontSize:11, background:'#FFF6E0', color:'#8C5E08', borderRadius:8, padding:'2px 8px', display:'flex', alignItems:'center', gap:3 }}>
-              <Home size={10} /> ایستگاه کاربران
+              <Home size={10} /> ایستگاه خانگی
             </span>
           )}
           {station.lat != null && station.lng != null && (

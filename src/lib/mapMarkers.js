@@ -7,9 +7,14 @@
 
 export const INDIVIDUAL_MIN_ZOOM = 14;
 
-/** ایستگاهی که کاربر ثبت کرده و ادمین تأیید کرده است. */
+/** پین طلایی و آیکون خانه فقط برای ایستگاه خانگی است. */
 export function isOwnerStation(station) {
-  return Boolean(station?.isOwnerStation || station?.is_owner_station);
+  return Boolean(
+    station?.isHomeStation ||
+      station?.is_home_station ||
+      station?.isOwnerStation ||
+      station?.is_owner_station,
+  );
 }
 
 export function isValidStationLatLng(station) {

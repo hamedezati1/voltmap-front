@@ -10,13 +10,14 @@
  *   PATCH  /admin/users/:userId/membership
  */
 import { apiClient, USE_MOCK } from "./client";
-import { normalizeReview } from "./normalize";
+import { normalizeReview, normalizeStation, normalizeStations } from "./normalize";
 import { mockStations } from "../mocks/stations";
 import {
   updateUserMembership as mockUpdateMembership,
   getStoredSession,
 } from "../mocks/auth";
 import { normalizeMembership } from "../lib/membership";
+import { isHomeStation } from "../lib/homeStations";
 
 const USERS_KEY = "voltmap_users";
 
@@ -140,4 +141,33 @@ export async function deleteUser(userId) {
     return true;
   }
   throw new Error("حذف کاربر در بک‌اند هنوز پیاده‌سازی نشده است");
+}
+
+/** ایستگاه‌های خانگی تأییدشده — فقط صفحهٔ شارژرهای ادمین */
+export async function fetchHomeStations() {
+  if (USE_MOCK) {
+    const list = await mockStations.getAll();
+    return normalizeStations(list.filter((station) => isHomeStation(station)));
+  }
+  const list = await apiClient("/admin/home-stations");
+  return normalizeStations(list);
+}
+
+export async function updateHomeStation(id, changes) {
+  if (USE_MOCK) return normalizeStation(await mockStations.update(id, changes));
+  return normalizeStation(
+    await apiClient(`/admin/home-stations/${id}`, {
+      method: "PATCH",
+      body: changes,
+    }),
+  );
+}
+
+export async function deleteHomeStation(id) {
+  if (USE_MOCK) {
+    await mockStations.delete(id);
+    return true;
+  }
+  await apiClient(`/admin/home-stations/${id}`, { method: "DELETE" });
+  return true;
 }

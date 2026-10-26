@@ -47,7 +47,7 @@ export default function App() {
     fetchStations()
       .then(setStations)
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.id, user?.membership, user?.membershipExpiresAt]);
 
   if (isAdmin) {
     return (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MapPin,
   X,
@@ -6,10 +6,11 @@ import {
   ClipboardList,
   ThumbsUp,
   ThumbsDown,
+  Trash2,
 } from "lucide-react";
 import {
   approveStationReport,
-  createStation,
+  deleteStationReport,
   fetchStationReports,
   rejectStationReport,
 } from "../../api";
@@ -24,6 +25,7 @@ export default function StationReportsPanel({ setStations }) {
   const [srLoading, setSrLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [kindFilter, setKindFilter] = useState("all");
 
   useEffect(() => {
     setSrLoading(true);
@@ -32,65 +34,52 @@ export default function StationReportsPanel({ setStations }) {
       .finally(() => setSrLoading(false));
   }, []);
 
+  const visibleReports = useMemo(() => {
+    if (kindFilter === "home") return stationReports.filter((report) => report.isHome);
+    if (kindFilter === "public") return stationReports.filter((report) => !report.isHome);
+    return stationReports;
+  }, [stationReports, kindFilter]);
+
   const handleApproveReport = async (report) => {
-    const isHome = Boolean(report.isHome);
-    await approveStationReport(report.id);
     try {
-      const type =
-        report.type === "DC" ? "DC" : report.type === "AC/DC" ? "AC/DC" : "AC";
-      const ports = Number(report.ports) || 1;
-      const priceText = String(report.price ?? "").trim();
-      const isFree = Boolean(report.isFree) || priceText === "رایگان";
-      const newStation = await createStation({
-        name: report.name,
-        city: report.city || "نامشخص",
-        address: report.address || "نامشخص",
-        lat: report.lat ?? 35.6892,
-        lng: report.lng ?? 51.389,
-        type,
-        connector: report.connector || "Type2",
-        connectors: report.connector || "Type2",
-        power: report.power || 22,
-        maxPower: String(report.power || 22),
-        ports,
-        acPorts:
-          type === "DC"
-            ? 0
-            : type === "AC/DC"
-              ? Math.max(1, Math.floor(ports / 2))
-              : ports,
-        dcPorts:
-          type === "AC"
-            ? 0
-            : type === "AC/DC"
-              ? Math.max(1, ports - Math.floor(ports / 2))
-              : ports,
-        status: "available",
-        isFree,
-        pricePerKwh: isFree ? null : priceText || null,
-        hours: report.hours || "۲۴ ساعته",
-        description: report.notes || report.ownerNote || null,
-        image: report.image || null,
-        // ایستگاه خانگی ← بخش «شارژرها» + فقط برای پرو/پلاس روی نقشه
-        // ایستگاه معمولی ← بخش «ایستگاه‌ها» + برای همه
-        isHomeStation: isHome,
-        isOwnerStation: isHome,
-        ownerName: report.reporterName || null,
-        ownerId: report.reportedBy ?? null,
-        sourceReportId: report.id,
-      });
-      setStations((prev) => [newStation, ...prev]);
+      const result = await approveStationReport(report.id);
+      if (result?.station) {
+        setStations((prev) => [
+          result.station,
+          ...prev.filter((station) => station.id !== result.station.id),
+        ]);
+      }
+      setStationReports((prev) =>
+        prev.map((item) =>
+          item.id === report.id
+            ? { ...item, ...result, station: undefined, status: "approved" }
+            : item,
+        ),
+      );
+      alert(
+        report.isHome
+          ? `✅ ایستگاه خانگی «${report.name}» تأیید شد و در بخش «شارژرها» قرار گرفت`
+          : `✅ ایستگاه «${report.name}» تأیید و به لیست ایستگاه‌ها اضافه شد`,
+      );
     } catch (err) {
-      alert(err.message || "تأیید گزارش انجام شد ولی ساخت ایستگاه ناموفق بود");
+      alert(err.message || "تأیید گزارش ناموفق بود");
     }
-    setStationReports((prev) =>
-      prev.map((r) => (r.id === report.id ? { ...r, status: "approved" } : r)),
-    );
-    alert(
-      isHome
-        ? `✅ ایستگاه خانگی «${report.name}» تأیید شد و در بخش «شارژرها» قرار گرفت`
-        : `✅ ایستگاه «${report.name}» تأیید و به لیست ایستگاه‌ها اضافه شد`,
-    );
+  };
+
+  const handleDeleteReport = async (report) => {
+    if (
+      !window.confirm(
+        `گزارش «${report.name}» برای همیشه از پایگاه داده حذف شود؟ خود ایستگاه تأییدشده، اگر ساخته شده باشد، باقی می‌ماند.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await deleteStationReport(report.id);
+      setStationReports((prev) => prev.filter((item) => item.id !== report.id));
+    } catch (err) {
+      alert(err.message || "حذف گزارش ناموفق بود");
+    }
   };
 
   const handleRejectReport = async () => {
@@ -165,6 +154,49 @@ export default function StationReportsPanel({ setStations }) {
                       color="#E74C3C"
                       bg="#fef2f2"
                     />
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginBottom: isMobile ? 12 : 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {[
+                      { key: "all", label: "همه" },
+                      { key: "public", label: "عمومی" },
+                      { key: "home", label: "خانگی" },
+                    ].map((item) => {
+                      const on = kindFilter === item.key;
+                      const count =
+                        item.key === "home"
+                          ? stationReports.filter((report) => report.isHome).length
+                          : item.key === "public"
+                            ? stationReports.filter((report) => !report.isHome).length
+                            : stationReports.length;
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => setKindFilter(item.key)}
+                          style={{
+                            border: on ? "1.5px solid #2ECC71" : "1px solid #e5e7eb",
+                            background: on ? "#e8faf0" : "#fff",
+                            color: on ? "#1a7a40" : "#666",
+                            borderRadius: 12,
+                            padding: "8px 14px",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            fontFamily: "Vazirmatn",
+                          }}
+                        >
+                          {item.label} ({count.toLocaleString("fa-IR")})
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {srLoading && (
@@ -279,7 +311,7 @@ export default function StationReportsPanel({ setStations }) {
                   )}
 
                   {/* لیست گزارش‌ها */}
-                  {!srLoading && stationReports.length === 0 && (
+                  {!srLoading && visibleReports.length === 0 && (
                     <div
                       style={{
                         textAlign: "center",
@@ -295,12 +327,14 @@ export default function StationReportsPanel({ setStations }) {
                         style={{ margin: "0 auto 12px" }}
                       />
                       <p style={{ color: "#aaa", fontSize: 14 }}>
-                        هنوز گزارشی ثبت نشده
+                        {stationReports.length === 0
+                          ? "هنوز گزارشی ثبت نشده"
+                          : "در این فیلتر گزارشی نیست"}
                       </p>
                     </div>
                   )}
 
-                  {!srLoading && stationReports.length > 0 && (
+                  {!srLoading && visibleReports.length > 0 && (
                     <div
                       style={{
                         display: "flex",
@@ -308,7 +342,7 @@ export default function StationReportsPanel({ setStations }) {
                         gap: isMobile ? 12 : 16,
                       }}
                     >
-                      {stationReports.map((report) => {
+                      {visibleReports.map((report) => {
                         const badge =
                           STATUS_BADGE[report.status] || STATUS_BADGE.pending;
                         return (
@@ -393,12 +427,18 @@ export default function StationReportsPanel({ setStations }) {
                                     {badge.label}
                                   </span>
                                 </div>
-                                <div style={{ fontSize: 12, color: "#888" }}>
-                                  {report.city} · گزارش از:{" "}
-                                  {report.reporterName || "—"} ·{" "}
-                                  {new Date(
-                                    report.createdAt,
-                                  ).toLocaleDateString("fa-IR")}
+                                <div style={{ fontSize: 12, color: "#555", lineHeight: 1.8 }}>
+                                  ثبت‌کننده:{" "}
+                                  <b>{report.reporterName || "کاربر حذف‌شده"}</b>
+                                  {report.reporterMembership
+                                    ? ` · اشتراک ${membershipLabel(report.reporterMembership)}`
+                                    : ""}
+                                  <br />
+                                  تاریخ ثبت:{" "}
+                                  {report.createdAt
+                                    ? new Date(report.createdAt).toLocaleString("fa-IR")
+                                    : "—"}
+                                  {report.city ? ` · ${report.city}` : ""}
                                 </div>
                               </div>
                             </div>
@@ -654,37 +694,89 @@ export default function StationReportsPanel({ setStations }) {
                                   style={{
                                     display: "flex",
                                     alignItems: "center",
-                                    gap: 6,
+                                    gap: 8,
                                     marginTop: 8,
-                                    color: "#2ECC71",
-                                    fontSize: 12,
+                                    flexWrap: "wrap",
                                   }}
                                 >
-                                  <CheckCircle size={14} /> ایستگاه تأیید و
-                                  اضافه شده
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                      color: "#2ECC71",
+                                      fontSize: 12,
+                                    }}
+                                  >
+                                    <CheckCircle size={14} /> ایستگاه تأیید و
+                                    اضافه شده
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteReport(report)}
+                                    style={{
+                                      marginRight: "auto",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                      padding: "8px 12px",
+                                      background: "#fef2f2",
+                                      color: "#E74C3C",
+                                      border: "1px solid #fecaca",
+                                      borderRadius: 10,
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                      fontFamily: "Vazirmatn",
+                                    }}
+                                  >
+                                    <Trash2 size={14} /> حذف گزارش
+                                  </button>
                                 </div>
                               )}
 
                               {report.status === "rejected" && (
-                                <div
-                                  style={{
-                                    marginTop: 8,
-                                    color: "#E74C3C",
-                                    fontSize: 12,
-                                  }}
-                                >
-                                  <X
-                                    size={14}
-                                    style={{ display: "inline", marginLeft: 4 }}
-                                  />
-                                  رد شده
-                                  {report.rejectReason && (
-                                    <span
-                                      style={{ color: "#888", marginRight: 6 }}
-                                    >
-                                      · {report.rejectReason}
-                                    </span>
-                                  )}
+                                <div style={{ marginTop: 8 }}>
+                                  <div
+                                    style={{
+                                      color: "#E74C3C",
+                                      fontSize: 12,
+                                    }}
+                                  >
+                                    <X
+                                      size={14}
+                                      style={{ display: "inline", marginLeft: 4 }}
+                                    />
+                                    رد شده
+                                    {report.rejectReason && (
+                                      <span
+                                        style={{ color: "#888", marginRight: 6 }}
+                                      >
+                                        · {report.rejectReason}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteReport(report)}
+                                    style={{
+                                      marginTop: 8,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                      padding: "8px 12px",
+                                      background: "#fef2f2",
+                                      color: "#E74C3C",
+                                      border: "1px solid #fecaca",
+                                      borderRadius: 10,
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                      fontFamily: "Vazirmatn",
+                                    }}
+                                  >
+                                    <Trash2 size={14} /> حذف گزارش
+                                  </button>
                                 </div>
                               )}
                             </div>

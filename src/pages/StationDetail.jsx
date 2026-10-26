@@ -343,7 +343,7 @@ export default function StationDetail({ stations, setStations }) {
               className="mb-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold"
               style={{ background: "#FFF6E0", color: "#8C5E08" }}
             >
-              ایستگاه کاربران
+              ایستگاه خانگی
             </span>
           )}
           {station.operator && (
