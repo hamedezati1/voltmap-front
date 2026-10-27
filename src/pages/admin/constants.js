@@ -7,6 +7,7 @@ import {
   Settings,
   Newspaper,
   ClipboardList,
+  CreditCard,
   CheckCircle,
   AlertCircle,
   Clock,
@@ -27,6 +28,7 @@ export const NAV = [
     label: "ایستگاه‌های گزارش‌شده",
   },
   { key: "reports", Icon: BarChart2, label: "گزارش‌ها" },
+  { key: "billing", Icon: CreditCard, label: "اشتراک و پرداخت" },
   { key: "settings", Icon: Settings, label: "تنظیمات" },
 ];
 

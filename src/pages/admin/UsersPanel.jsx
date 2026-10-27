@@ -20,7 +20,18 @@ import {
 import StatCard from "./StatCard";
 import useIsMobile from "./useIsMobile";
 import { MEMBERSHIP_OPTIONS } from "./constants";
-import { isPremiumLabel } from "../../lib/membership";
+import { MEMBERSHIP, isPremiumLabel, membershipLabel } from "../../lib/membership";
+
+function formatSignupDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("fa-IR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+}
 
 export default function UsersPanel({ stations, setStations }) {
   const isMobile = useIsMobile();
@@ -31,6 +42,7 @@ export default function UsersPanel({ stations, setStations }) {
     top: 0,
     left: 0,
   });
+  const [section, setSection] = useState("users");
 
   useEffect(() => {
     fetchUsers()
@@ -104,11 +116,52 @@ export default function UsersPanel({ stations, setStations }) {
   );
   return (
     <>
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: isMobile ? 12 : 16,
+          flexWrap: "wrap",
+        }}
+      >
+        {[
+          { key: "users", label: "کاربران" },
+          { key: "reviews", label: "نظرات" },
+        ].map((item) => {
+          const on = section === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => {
+                setSection(item.key);
+                setMembershipMenu(null);
+              }}
+              style={{
+                border: on ? "1.5px solid #3498DB" : "1px solid #e5e7eb",
+                background: on ? "#EBF5FB" : "#fff",
+                color: on ? "#1a5a8a" : "#666",
+                borderRadius: 12,
+                padding: "9px 16px",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "Vazirmatn",
+              }}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {section === "users" && (
+      <>
       {/* Stats row */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(4,1fr)",
+          gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(3,1fr)",
           gap: isMobile ? 10 : 16,
           marginBottom: isMobile ? 14 : 24,
         }}
@@ -124,7 +177,7 @@ export default function UsersPanel({ stations, setStations }) {
         />
         <StatCard
           label="اشتراک پرو"
-          value={users.filter((u) => u.membership === "پرو").length}
+          value={users.filter((u) => u.membership === MEMBERSHIP.PRO).length}
           sub="کاربر فعال"
           subUp
           Icon={Crown}
@@ -133,23 +186,14 @@ export default function UsersPanel({ stations, setStations }) {
         />
         <StatCard
           label="اشتراک پلاس"
-          value={users.filter((u) => u.membership === "پلاس").length}
+          value={users.filter((u) => u.membership === MEMBERSHIP.PLUS).length}
           sub="کاربر فعال"
           subUp
           Icon={Crown}
           color="#F59E0B"
           bg="#fef9e7"
-        />
-        <StatCard
-          label="کل نظرات"
-          value={allReviews.length}
-          sub="نظر ثبت شده"
-          subUp
-          Icon={Star}
-          color="#F39C12"
-          bg="#fef9e7"
-        />
-      </div>
+          />
+        </div>
 
       {/* Users table */}
       <div
@@ -200,10 +244,7 @@ export default function UsersPanel({ stations, setStations }) {
             />
             <input
               value={userSearch}
-              onChange={(e) => {
-                setUserSearch(e.target.value);
-                setUsers(readUsers());
-              }}
+              onChange={(e) => setUserSearch(e.target.value)}
               placeholder="جستجو نام، ایمیل، موبایل..."
               style={{
                 border: "1px solid #e5e7eb",
@@ -358,7 +399,7 @@ export default function UsersPanel({ stations, setStations }) {
                         }}
                       >
                         {premium && <Crown size={12} />}
-                        {u.membership || "رایگان"}
+                        {membershipLabel(u.membership)}
                         <ChevronDown size={12} />
                       </button>
                       <span
@@ -384,9 +425,7 @@ export default function UsersPanel({ stations, setStations }) {
                         }}
                       >
                         <Calendar size={12} />
-                        {u.createdAt
-                          ? new Date(u.createdAt).toLocaleDateString("fa-IR")
-                          : "—"}
+                        {formatSignupDate(u.createdAt)}
                       </span>
                     </div>
                   </div>
@@ -556,7 +595,7 @@ export default function UsersPanel({ stations, setStations }) {
                         }}
                       >
                         {isPremiumLabel(u.membership) && <Crown size={11} />}
-                        {u.membership || "رایگان"}
+                        {membershipLabel(u.membership)}
                         <ChevronDown size={11} />
                       </button>
                     </div>
@@ -572,9 +611,7 @@ export default function UsersPanel({ stations, setStations }) {
                       }}
                     >
                       <Calendar size={12} />
-                      {u.createdAt
-                        ? new Date(u.createdAt).toLocaleDateString("fa-IR")
-                        : "—"}
+                      {formatSignupDate(u.createdAt)}
                     </div>
                   </td>
                   <td style={{ padding: "12px 16px" }}>
@@ -660,16 +697,16 @@ export default function UsersPanel({ stations, setStations }) {
                       cursor: "pointer",
                       background:
                         menuUser.membership === m
-                          ? m !== "رایگان"
+                          ? m !== MEMBERSHIP.FREE
                             ? "#fef9e7"
                             : "#f5f7fa"
                           : "transparent",
-                      color: m !== "رایگان" ? "#D97706" : "#333",
+                      color: m !== MEMBERSHIP.FREE ? "#D97706" : "#333",
                       fontWeight: menuUser.membership === m ? 700 : 400,
                       transition: "background 0.1s",
                     }}
                   >
-                    {m !== "رایگان" ? (
+                    {m !== MEMBERSHIP.FREE ? (
                       <Crown size={14} color="#F59E0B" />
                     ) : (
                       <div
@@ -681,7 +718,7 @@ export default function UsersPanel({ stations, setStations }) {
                         }}
                       />
                     )}
-                    {m}
+                    {membershipLabel(m)}
                     {menuUser.membership === m && (
                       <span
                         style={{
@@ -699,6 +736,30 @@ export default function UsersPanel({ stations, setStations }) {
             </>
           );
         })()}
+
+      </>
+      )}
+
+      {section === "reviews" && (
+      <>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "240px",
+          gap: 16,
+          marginBottom: isMobile ? 14 : 24,
+        }}
+      >
+        <StatCard
+          label="کل نظرات"
+          value={allReviews.length}
+          sub="نظر ثبت شده"
+          subUp
+          Icon={Star}
+          color="#F39C12"
+          bg="#fef9e7"
+        />
+      </div>
 
       {/* Reviews */}
       <div
@@ -877,6 +938,8 @@ export default function UsersPanel({ stations, setStations }) {
           )}
         </div>
       </div>
+      </>
+      )}
     </>
   );
 }

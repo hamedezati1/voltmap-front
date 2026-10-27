@@ -12,6 +12,7 @@ import UsersPanel from "./admin/UsersPanel";
 import NewsPanel from "./admin/NewsPanel";
 import StationReportsPanel from "./admin/StationReportsPanel";
 import ReportsPanel from "./admin/ReportsPanel";
+import BillingPanel from "./admin/BillingPanel";
 import ComingSoonPanel from "./admin/ComingSoonPanel";
 import ChargersPanel from "./admin/ChargersPanel";
 import { isHomeStation } from "../lib/homeStations";
@@ -205,8 +206,9 @@ export default function Admin({ stations, setStations }) {
             <StationReportsPanel setStations={setStations} />
           )}
           {active === "reports" && <ReportsPanel stations={publicStations} />}
+          {active === "billing" && <BillingPanel />}
           {active === "chargers" && (
-            <ChargersPanel stations={stations} setStations={setStations} />
+            <ChargersPanel setStations={setStations} />
           )}
           {active === "settings" && <ComingSoonPanel />}
         </div>

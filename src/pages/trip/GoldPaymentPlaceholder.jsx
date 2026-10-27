@@ -24,11 +24,11 @@ export default function GoldPaymentPlaceholder() {
           <Crown size={36} color="#F59E0B" />
         </div>
         <h1 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">
-          اشتراک طلایی
+          اشتراک پرو و پلاس
         </h1>
         <p className="mb-8 max-w-xs text-sm leading-7 text-gray-500 dark:text-gray-400">
-          برنامه‌ریزی سفر فقط برای اعضای طلایی فعال است. درگاه پرداخت هنوز وصل
-          نشده؛ این صفحه جای اتصال درگاه است.
+          برنامه‌ریزی سفر فقط برای اعضای پرو و پلاس فعال است. درگاه پرداخت هنوز
+          وصل نشده؛ این صفحه جای اتصال درگاه است.
         </p>
 
         <button

@@ -135,7 +135,7 @@ function stationPopupHTML(station) {
       <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
         ${
           owner
-            ? `<span style="font-size:11px; background:#FFF6E0; color:#8C5E08; padding:3px 10px; border-radius:12px; font-weight:700;">ایستگاه کاربران</span>`
+            ? `<span style="font-size:11px; background:#FFF6E0; color:#8C5E08; padding:3px 10px; border-radius:12px; font-weight:700;">ایستگاه خانگی</span>`
             : ""
         }
         <span style="font-size:11px; background:${c.main}22; color:${c.main}; padding:3px 10px; border-radius:12px; font-weight:600;">

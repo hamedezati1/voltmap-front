@@ -120,8 +120,8 @@ export function validateStationReport({ name, notes, ownerNote, type }) {
     errors.notes = 'توضیحات نباید بیشتر از ۱۰۰۰ کاراکتر باشد'
   }
 
-  if (isFilled(type) && type !== 'AC' && type !== 'DC') {
-    // بک‌اند فقط AC و DC می‌پذیرد
+  if (isFilled(type) && type !== 'AC' && type !== 'DC' && type !== 'AC/DC') {
+    errors.type = 'نوع شارژر نامعتبر است'
   }
 
   return { ok: Object.keys(errors).length === 0, errors }

@@ -5,7 +5,8 @@ import StationDetail from "./pages/StationDetail";
 import Admin from "./pages/Admin";
 import Routes_ from "./pages/Routes";
 import Trip from "./pages/trip";
-import GoldPaymentPlaceholder from "./pages/trip/GoldPaymentPlaceholder";
+import Plans from "./pages/Plans";
+import PaymentResult from "./pages/PaymentResult";
 import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
 import MyStation from "./pages/MyStation";
@@ -33,7 +34,7 @@ import { filterStationsForUser } from "./lib/homeStations";
 export default function App() {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const location = useLocation();
   // ایستگاه خانگی فقط برای پرو/پلاس دیده می‌شود (ادمین همه را می‌بیند)
   const visibleStations = useMemo(
@@ -43,10 +44,13 @@ export default function App() {
   const isAdmin = location.pathname.startsWith("/admin");
 
   useEffect(() => {
+    // تا وقتی نشست (getSession / refresh) تمام نشده درخواست نزن؛
+    // وگرنه با توکن منقضی ۴۰۱ می‌گیرد و refresh موازی با getSession شروع می‌شود.
+    if (authLoading) return;
     fetchStations()
       .then(setStations)
       .finally(() => setLoading(false));
-  }, []);
+  }, [authLoading, user?.id, user?.membership, user?.membershipExpiresAt]);
 
   if (isAdmin) {
     return (
@@ -132,7 +136,9 @@ export default function App() {
           />
           <Route path="/routes" element={<Routes_ />} />
           <Route path="/trip" element={<Trip />} />
-          <Route path="/trip/upgrade" element={<GoldPaymentPlaceholder />} />
+          <Route path="/plans" element={<Plans />} />
+          <Route path="/trip/upgrade" element={<Plans />} />
+          <Route path="/payment/result" element={<PaymentResult />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/my-station" element={<MyStation />} />
           <Route path="/contact" element={<Contact />} />

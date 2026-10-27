@@ -5,7 +5,7 @@
  */
 
 const DEFAULT_PROFILE = {
-  membership: 'رایگان',
+  membership: 'free',
   totalSessions: 0,
   totalKwh: 0,
   favoriteStationIds: [],   // آرایه‌ای از id های ایستگاه

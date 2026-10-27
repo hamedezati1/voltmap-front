@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import {
   Plus,
-  Home,
   Camera,
   X,
   CheckCircle,
@@ -93,9 +92,14 @@ function Label({ children, required = true }) {
   );
 }
 
-export default function StationReportForm({ onClose, hideHeader = false }) {
+export default function StationReportForm({
+  onClose,
+  hideHeader = false,
+  kind = "public",
+}) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isHome = kind === "home";
   const canHost = canHostHomeStation(user);
 
   const [form, setForm] = useState(EMPTY_FORM);
@@ -222,6 +226,11 @@ export default function StationReportForm({ onClose, hideHeader = false }) {
   };
 
   const handleSubmit = async () => {
+    if (isHome && !canHost) {
+      startGoldPayment({ navigate, returnTo: "/my-station" });
+      return;
+    }
+
     const fieldErrors = validate();
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length > 0) {
@@ -229,9 +238,7 @@ export default function StationReportForm({ onClose, hideHeader = false }) {
       return;
     }
 
-    // ایستگاه خانگی فقط برای پرو/پلاس
-    // TODO: همین قانون باید سمت بک‌اند هم اعمال شود (رد درخواست isHome از کاربر رایگان)
-    const asHome = canHost && form.isHome;
+    const asHome = isHome && canHost;
 
     setSaving(true);
     try {
@@ -312,8 +319,30 @@ export default function StationReportForm({ onClose, hideHeader = false }) {
       )}
 
       <p className="text-[11px] text-gray-400 dark:text-gray-500 leading-5">
-        همه‌ی فیلدها الزامی است. تا همه‌ی اطلاعات کامل نشود، ایستگاه ثبت نمی‌شود.
+        {isHome
+          ? "در حال ثبت ایستگاه خانگی. بعد از تأیید، فقط کاربران پرو و پلاس آن را با آیکون خانه می‌بینند."
+          : "در حال ثبت ایستگاه عمومی. بعد از تأیید، برای همه مثل بقیهٔ ایستگاه‌ها دیده می‌شود."}
+        {" "}
+        همه‌ی فیلدها الزامی است.
       </p>
+
+      {isHome && !canHost ? (
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+          <Lock size={14} className="mt-0.5 text-gray-400 flex-shrink-0" />
+          <div className="text-xs leading-6 text-gray-500 dark:text-gray-400">
+            ثبت ایستگاه خانگی فقط با اشتراک پرو ممکن است.{" "}
+            <button
+              type="button"
+              onClick={() =>
+                startGoldPayment({ navigate, returnTo: "/my-station" })
+              }
+              className="font-semibold text-emerald-600 dark:text-emerald-400"
+            >
+              ارتقای اشتراک
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div data-field="image">
         <Label>عکس ایستگاه</Label>
@@ -363,41 +392,6 @@ export default function StationReportForm({ onClose, hideHeader = false }) {
         </div>
         <FieldError message={errors.image} />
       </div>
-
-      {canHost ? (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-          <input
-            type="checkbox"
-            id="isHome"
-            checked={form.isHome}
-            onChange={(e) => f("isHome", e.target.checked)}
-            className="w-4 h-4 accent-emerald-500"
-          />
-          <label
-            htmlFor="isHome"
-            className="text-sm text-blue-700 dark:text-blue-300 cursor-pointer flex items-center gap-1.5"
-          >
-            <Home size={14} /> ایستگاه خانگی (می‌خواهم در اختیار عموم بگذارم)
-          </label>
-        </div>
-      ) : (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
-          <Lock size={14} className="mt-0.5 text-gray-400 flex-shrink-0" />
-          <div className="text-xs leading-6 text-gray-500 dark:text-gray-400">
-            با اشتراک رایگان فقط ایستگاه معمولی ثبت می‌شود. ثبت ایستگاه خانگی
-            مخصوص کاربران پرو و پلاس است.{" "}
-            <button
-              type="button"
-              onClick={() =>
-                startGoldPayment({ navigate, returnTo: "/my-station" })
-              }
-              className="font-semibold text-emerald-600 dark:text-emerald-400"
-            >
-              ارتقای اشتراک
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-3">
         <div data-field="name">

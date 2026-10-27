@@ -1,22 +1,26 @@
 /**
  * سطح‌های اشتراک ولت‌مپ
  *
- * رایگان ← پرو ← پلاس   (پلاس بالاترین سطح است)
+ * مقدار ذخیره‌شده در API و دیتابیس: free ← pro ← plus
+ * متن نمایشی: رایگان ← پرو ← پلاس   (پلاس بالاترین سطح است)
  *
- * نام‌های قدیمی (ویژه / طلایی / gold / ...) هنوز ممکن است در localStorage یا
- * دیتابیس باشند؛ همه‌ی مقدارها از طریق normalizeMembership به نام جدید تبدیل می‌شوند.
- *
- * TODO: وقتی بک‌اند آماده شد، enum سطح اشتراک در دیتابیس هم باید
- *       به free / pro / plus تغییر کند (فعلاً برچسب فارسی ارسال می‌شود).
+ * نام‌های قدیمی (ویژه / طلایی / gold / برچسب فارسی) هنوز ممکن است در
+ * localStorage باشند؛ normalizeMembership همه‌شان را به کد جدید برمی‌گرداند.
  */
 
 export const MEMBERSHIP = {
-  FREE: "رایگان",
-  PRO: "پرو",
-  PLUS: "پلاس",
+  FREE: "free",
+  PRO: "pro",
+  PLUS: "plus",
 };
 
-/** ترتیب نمایش از پایین به بالا */
+export const MEMBERSHIP_LABELS = {
+  [MEMBERSHIP.FREE]: "رایگان",
+  [MEMBERSHIP.PRO]: "پرو",
+  [MEMBERSHIP.PLUS]: "پلاس",
+};
+
+/** ترتیب نمایش از پایین به بالا — مقدار ارسالی به API */
 export const MEMBERSHIP_OPTIONS = [
   MEMBERSHIP.FREE,
   MEMBERSHIP.PRO,
@@ -24,16 +28,14 @@ export const MEMBERSHIP_OPTIONS = [
 ];
 
 const ALIASES = {
-  // نام‌های جدید
-  رایگان: MEMBERSHIP.FREE,
   free: MEMBERSHIP.FREE,
-  پرو: MEMBERSHIP.PRO,
+  رایگان: MEMBERSHIP.FREE,
   pro: MEMBERSHIP.PRO,
-  پلاس: MEMBERSHIP.PLUS,
-  plus: MEMBERSHIP.PLUS,
-  // نام‌های قدیمی
+  پرو: MEMBERSHIP.PRO,
   ویژه: MEMBERSHIP.PRO,
   "حرفه‌ای": MEMBERSHIP.PRO,
+  plus: MEMBERSHIP.PLUS,
+  پلاس: MEMBERSHIP.PLUS,
   طلایی: MEMBERSHIP.PLUS,
   gold: MEMBERSHIP.PLUS,
 };
@@ -46,14 +48,23 @@ export function normalizeMembership(value) {
   return ALIASES[key] ?? ALIASES[key.toLowerCase()] ?? MEMBERSHIP.FREE;
 }
 
+/** برچسب فارسی برای نمایش در UI */
+export function membershipLabel(value) {
+  return MEMBERSHIP_LABELS[normalizeMembership(value)];
+}
+
 export function membershipLevel(user) {
   return normalizeMembership(user?.membership);
 }
 
-/** کاربر پرو یا پلاس */
+/** کاربر پرو یا پلاس با اشتراک هنوز معتبر. ادمین بدون خرید هم دسترسی دارد. */
 export function isPaidMember(user) {
+  if (user?.role === "admin") return true;
   const level = membershipLevel(user);
-  return level === MEMBERSHIP.PRO || level === MEMBERSHIP.PLUS;
+  if (level !== MEMBERSHIP.PRO && level !== MEMBERSHIP.PLUS) return false;
+  if (!user?.membershipExpiresAt) return true;
+  const time = new Date(user.membershipExpiresAt).getTime();
+  return Number.isFinite(time) && time > Date.now();
 }
 
 export function isPlusMember(user) {
