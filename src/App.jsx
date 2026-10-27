@@ -34,7 +34,7 @@ import { filterStationsForUser } from "./lib/homeStations";
 export default function App() {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const location = useLocation();
   // ایستگاه خانگی فقط برای پرو/پلاس دیده می‌شود (ادمین همه را می‌بیند)
   const visibleStations = useMemo(
@@ -44,10 +44,13 @@ export default function App() {
   const isAdmin = location.pathname.startsWith("/admin");
 
   useEffect(() => {
+    // تا وقتی نشست (getSession / refresh) تمام نشده درخواست نزن؛
+    // وگرنه با توکن منقضی ۴۰۱ می‌گیرد و refresh موازی با getSession شروع می‌شود.
+    if (authLoading) return;
     fetchStations()
       .then(setStations)
       .finally(() => setLoading(false));
-  }, [user?.id, user?.membership, user?.membershipExpiresAt]);
+  }, [authLoading, user?.id, user?.membership, user?.membershipExpiresAt]);
 
   if (isAdmin) {
     return (

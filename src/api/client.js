@@ -1,5 +1,12 @@
 import { API_BASE_URL } from './config'
-import { getAccessToken, setAccessToken, setStoredUser, clearStoredSession } from './tokenStore'
+import {
+  getAccessToken,
+  setAccessToken,
+  setStoredUser,
+  getStoredUser,
+  clearStoredSession,
+  syncAccessTokenFromStorage,
+} from './tokenStore'
 import { notifyApiError } from './toastMiddleware'
 
 export class ApiError extends Error {
@@ -13,6 +20,35 @@ export class ApiError extends Error {
 
 let csrfToken = null
 let refreshPromise = null
+
+/** وقتی نشست قطعاً از بین رفته (refresh token رد شد) UI از این طریق باخبر می‌شود */
+export const SESSION_EXPIRED_EVENT = 'voltmap:session-expired'
+const REFRESH_LOCK_NAME = 'voltmap-auth-refresh'
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const isAuthRejection = (err) =>
+  err instanceof ApiError && (err.status === 401 || err.status === 403)
+
+/**
+ * refresh بین تب‌ها هم نباید هم‌زمان اجرا شود (با rotation، دومی refresh token باطل‌شده می‌فرستد).
+ * Web Locks فقط در HTTPS/localhost هست؛ در غیر این صورت بدون قفل ادامه می‌دهیم.
+ */
+function withRefreshLock(fn) {
+  if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+    return navigator.locks.request(REFRESH_LOCK_NAME, fn)
+  }
+  return fn()
+}
+
+function expireSession(err) {
+  clearStoredSession()
+  csrfToken = null
+  // برای دیباگ روی سرور: دلیل دقیق خروج در کنسول دیده شود
+  console.warn('[auth] refresh rejected → session cleared', err?.status, err?.message)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+  }
+}
 
 function extractErrorMessage(data, status) {
   return (
@@ -43,6 +79,7 @@ export async function fetchCsrfToken({ showToast = true } = {}) {
     const response = await fetch(`${API_BASE_URL}/auth/csrf-token`, {
       method: 'GET',
       credentials: 'include',
+      cache: 'no-store',
     })
     if (!response.ok) {
       const data = await parseJsonSafe(response)
@@ -65,47 +102,79 @@ async function ensureCsrfToken(showToast = true) {
 }
 
 /**
- * تمدید access token از روی refresh cookie.
- * درخواست‌های موازی یک بار refresh مشترک می‌گیرند.
+ * یک تلاش (یا دو تلاش) واقعی برای تمدید توکن.
+ * - 401/403 فقط بعد از تلاش دوم (با CSRF تازه و کوکی فعلی مرورگر) «نشست مرده» حساب می‌شود.
+ * - خطای شبکه / 5xx / 429 هرگز نشست را پاک نمی‌کند.
  */
-export async function refreshAccessToken({ showToast = false } = {}) {
-  if (refreshPromise) return refreshPromise
+async function performRefresh(showToast) {
+  let lastErr = null
 
-  refreshPromise = (async () => {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt > 0) {
+      csrfToken = null
+      await sleep(350)
+    }
+
     try {
-      const token = await ensureCsrfToken(showToast)
+      const token = await ensureCsrfToken(false)
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
+        cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': token,
         },
       })
+      const data = await parseJsonSafe(response)
 
-      if (!response.ok) {
-        const data = await parseJsonSafe(response)
-        // فقط وقتی خودِ refresh رد شده نشست را پاک کن؛ خطای شبکه یا ۵۰۰ نباید لاگ‌اوت کند.
-        if (response.status === 401 || response.status === 403) {
-          clearStoredSession()
-          csrfToken = null
+      if (response.ok) {
+        const newToken = data?.token || data?.accessToken
+        if (!newToken) {
+          // پاسخ ۲۰۰ ولی بدون توکن: نشست قبلی را خراب نکن
+          throw new ApiError('پاسخ تمدید نشست نامعتبر است', 502, data)
         }
-        throwApiError(extractErrorMessage(data, response.status), response.status, data, showToast)
+        setAccessToken(newToken)
+        if (data.user) setStoredUser(data.user)
+        return { ...data, token: newToken }
       }
 
-      const data = await response.json()
-      setAccessToken(data.token)
-      if (data.user) setStoredUser(data.user)
-      return data
+      lastErr = new ApiError(extractErrorMessage(data, response.status), response.status, data)
     } catch (err) {
-      if (err instanceof ApiError) throw err
-      const error = new ApiError(err.message || 'خطا در برقراری ارتباط با سرور', 0, null)
-      notifyApiError(error, showToast)
-      throw error
-    } finally {
-      refreshPromise = null
+      lastErr =
+        err instanceof ApiError
+          ? err
+          : new ApiError(err.message || 'خطا در برقراری ارتباط با سرور', 0, null)
     }
-  })()
+
+    if (!isAuthRejection(lastErr)) break
+  }
+
+  if (isAuthRejection(lastErr)) expireSession(lastErr)
+  notifyApiError(lastErr, showToast)
+  throw lastErr
+}
+
+/**
+ * تمدید access token از روی refresh cookie.
+ * درخواست‌های موازی (در یک تب با promise مشترک، بین تب‌ها با Web Locks) فقط یک بار refresh می‌گیرند.
+ */
+export function refreshAccessToken({ showToast = false } = {}) {
+  if (refreshPromise) return refreshPromise
+
+  const tokenAtCall = getAccessToken()
+
+  refreshPromise = withRefreshLock(async () => {
+    // وقتی منتظر قفل بودیم شاید تب دیگری همین الان توکن را تمدید کرده باشد
+    const latest = syncAccessTokenFromStorage()
+    const storedUser = getStoredUser()
+    if (latest && latest !== tokenAtCall && storedUser) {
+      return { token: latest, user: storedUser }
+    }
+    return performRefresh(showToast)
+  }).finally(() => {
+    refreshPromise = null
+  })
 
   return refreshPromise
 }

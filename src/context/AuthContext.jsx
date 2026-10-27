@@ -6,6 +6,7 @@ import {
   getSession,
 } from '../api/auth'
 import { setAccessToken, clearStoredSession } from '../api/tokenStore'
+import { SESSION_EXPIRED_EVENT } from '../api/client'
 import { normalizeMembership } from '../lib/membership'
 
 /** نام قدیمی یا فارسی اشتراک را به free / pro / plus تبدیل می‌کند */
@@ -41,6 +42,17 @@ export function AuthProvider({ children }) {
         clearStoredSession()
       })
       .finally(() => setLoading(false))
+  }, [])
+
+  // وسط استفاده، اگر refresh token قطعاً رد شد، state ری‌اکت هم با storage هماهنگ شود
+  // (وگرنه UI «لاگین» می‌ماند در حالی که توکنی نیست)
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null)
+      setToken(null)
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired)
   }, [])
 
   const requestOtp = useCallback(async (payload, options) => {

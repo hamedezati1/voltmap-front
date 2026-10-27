@@ -28,6 +28,22 @@ export function getAccessToken() {
   return accessToken
 }
 
+/**
+ * کش داخل حافظه را با localStorage هماهنگ می‌کند.
+ * وقتی تب دیگری توکن را تمدید (rotate) کرده، این تب هم نسخهٔ جدید را می‌بیند.
+ */
+export function syncAccessTokenFromStorage() {
+  accessToken = readToken()
+  return accessToken
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    // key === null یعنی localStorage.clear()
+    if (e.key === ACCESS_TOKEN_KEY || e.key === null) accessToken = readToken()
+  })
+}
+
 export function setAccessToken(token) {
   accessToken = token || null
   try {
