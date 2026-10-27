@@ -2,7 +2,7 @@
  * Access token باید بعد از بستن اپ (مخصوصاً روی گوشی) باقی بماند.
  * حافظهٔ جاوااسکریپت با بستن وب‌ویو پاک می‌شود؛ localStorage نه.
  */
-const ACCESS_TOKEN_KEY = 'voltmap_access_token'
+export const ACCESS_TOKEN_KEY = 'voltmap_access_token'
 const AUTH_USER_KEY = 'voltmap_auth_user'
 
 function readToken() {
@@ -23,6 +23,18 @@ function readJson(key) {
 }
 
 let accessToken = readToken()
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === ACCESS_TOKEN_KEY && event.newValue) {
+      accessToken = event.newValue
+    }
+  })
+}
+
+export function readPersistedAccessToken() {
+  return readToken()
+}
 
 export function getAccessToken() {
   return accessToken

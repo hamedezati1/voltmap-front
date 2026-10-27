@@ -1,5 +1,13 @@
 import { API_BASE_URL } from './config'
-import { getAccessToken, setAccessToken, setStoredUser, clearStoredSession } from './tokenStore'
+import {
+  ACCESS_TOKEN_KEY,
+  getAccessToken,
+  setAccessToken,
+  setStoredUser,
+  clearStoredSession,
+  readPersistedAccessToken,
+  getStoredUser,
+} from './tokenStore'
 import { notifyApiError } from './toastMiddleware'
 
 export class ApiError extends Error {
@@ -13,6 +21,9 @@ export class ApiError extends Error {
 
 let csrfToken = null
 let refreshPromise = null
+
+const REFRESH_LOCK_KEY = 'voltmap_refresh_lock'
+const TAB_ID = `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 function extractErrorMessage(data, status) {
   return (
@@ -64,48 +75,137 @@ async function ensureCsrfToken(showToast = true) {
   return csrfToken
 }
 
+function readRefreshLock() {
+  try {
+    const raw = localStorage.getItem(REFRESH_LOCK_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function writeRefreshLock() {
+  try {
+    localStorage.setItem(REFRESH_LOCK_KEY, JSON.stringify({ owner: TAB_ID, at: Date.now() }))
+  } catch {
+    // حالت خصوصی
+  }
+}
+
+function clearRefreshLockIfMine() {
+  try {
+    const lock = readRefreshLock()
+    if (!lock || lock.owner === TAB_ID) localStorage.removeItem(REFRESH_LOCK_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+function waitForPeerToken(previous, timeoutMs = 8000) {
+  const current = readPersistedAccessToken()
+  if (current && current !== previous) return Promise.resolve(current)
+
+  return new Promise((resolve) => {
+    const finish = (token) => {
+      window.removeEventListener('storage', onStorage)
+      clearTimeout(timer)
+      resolve(token)
+    }
+    const onStorage = (event) => {
+      if (event.key === ACCESS_TOKEN_KEY && event.newValue && event.newValue !== previous) {
+        finish(event.newValue)
+      }
+    }
+    const timer = setTimeout(() => finish(null), timeoutMs)
+    window.addEventListener('storage', onStorage)
+  })
+}
+
+function sessionFromToken(token) {
+  setAccessToken(token)
+  return { token, user: getStoredUser() }
+}
+
+/** اگر تب دیگری همین الان در حال تمدید است، توکن تازهٔ او را برمی‌داریم. */
+async function adoptPeerRefresh(previous) {
+  const lock = readRefreshLock()
+  if (!lock || lock.owner === TAB_ID || Date.now() - Number(lock.at) > 10000) return null
+  const newer = await waitForPeerToken(previous)
+  if (!newer) return null
+  return sessionFromToken(newer)
+}
+
+function postRefresh(csrf) {
+  return fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrf,
+    },
+  })
+}
+
+async function requestRefresh(showToast) {
+  const previous = readPersistedAccessToken()
+  let csrf = await ensureCsrfToken(showToast)
+  let response = await postRefresh(csrf)
+
+  // CSRF قدیمی یک‌بار با توکن تازه تکرار می‌شود؛ خطای شبکه نشست را پاک نمی‌کند.
+  if (response.status === 403) {
+    csrfToken = null
+    csrf = await fetchCsrfToken({ showToast: false })
+    response = await postRefresh(csrf)
+  }
+
+  if (!response.ok) {
+    const data = await parseJsonSafe(response)
+    if (response.status === 401 || response.status === 403) {
+      const newer = readPersistedAccessToken()
+      if (newer && newer !== previous) return sessionFromToken(newer)
+      clearStoredSession()
+      csrfToken = null
+    }
+    console.warn('[auth] refresh rejected', response.status)
+    throwApiError(extractErrorMessage(data, response.status), response.status, data, showToast)
+  }
+
+  const data = await response.json()
+  if (!data?.token) {
+    console.warn('[auth] refresh rejected', response.status, 'missing token')
+    throwApiError('پاسخ تمدید نشست ناقص است', response.status, data, showToast)
+  }
+  setAccessToken(data.token)
+  if (data.user) setStoredUser(data.user)
+  return data
+}
+
 /**
  * تمدید access token از روی refresh cookie.
- * درخواست‌های موازی یک بار refresh مشترک می‌گیرند.
+ * درخواست‌های موازی داخل یک تب، و تب‌های هم‌زمان، یک refresh مشترک می‌گیرند.
  */
 export async function refreshAccessToken({ showToast = false } = {}) {
   if (refreshPromise) return refreshPromise
 
   refreshPromise = (async () => {
+    const previous = readPersistedAccessToken()
+    const adopted = await adoptPeerRefresh(previous)
+    if (adopted) return adopted
+
+    writeRefreshLock()
     try {
-      const token = await ensureCsrfToken(showToast)
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': token,
-        },
-      })
-
-      if (!response.ok) {
-        const data = await parseJsonSafe(response)
-        // فقط وقتی خودِ refresh رد شده نشست را پاک کن؛ خطای شبکه یا ۵۰۰ نباید لاگ‌اوت کند.
-        if (response.status === 401 || response.status === 403) {
-          clearStoredSession()
-          csrfToken = null
-        }
-        throwApiError(extractErrorMessage(data, response.status), response.status, data, showToast)
-      }
-
-      const data = await response.json()
-      setAccessToken(data.token)
-      if (data.user) setStoredUser(data.user)
-      return data
+      return await requestRefresh(showToast)
     } catch (err) {
       if (err instanceof ApiError) throw err
       const error = new ApiError(err.message || 'خطا در برقراری ارتباط با سرور', 0, null)
       notifyApiError(error, showToast)
       throw error
     } finally {
-      refreshPromise = null
+      clearRefreshLockIfMine()
     }
-  })()
+  })().finally(() => {
+    refreshPromise = null
+  })
 
   return refreshPromise
 }
