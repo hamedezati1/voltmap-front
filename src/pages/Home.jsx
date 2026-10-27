@@ -22,7 +22,6 @@ import Type2Icon from "../icons/Type2Icon";
 import Ccs2Icon from "../icons/CCS2Icon";
 import ACIcon from "../icons/ACIcon";
 import DCIcon from "../icons/DCIcon";
-import { fetchNews } from "../api";
 
 // شهرهای موجود با مختصات مرکزی برای zoom
 // TODO: این لیست باید از API گرفته شه: GET /cities
@@ -68,27 +67,6 @@ export default function Home({ stations }) {
     // آخرین باری که کاربر اخبار رو دید در localStorage ذخیره می‌شه
     return Number(localStorage.getItem("voltmap_last_news_seen") || 0);
   });
-
-  useEffect(() => {
-    // هر ۳۰ ثانیه چک کن خبر جدید اومده یا نه
-    // TODO: وقتی به دیتابیس وصل شد، اینجا از WebSocket یا SSE استفاده کن
-    const checkNews = async () => {
-      try {
-        const news = await fetchNews();
-        if (news.length === 0) return;
-        const latestTs = new Date(news[0].publishedAt).getTime();
-        if (latestTs > lastNewsTs) {
-          setHasNewNews(true);
-          // زنگوله ۱۰ ثانیه لرزش داره
-          setBellShaking(true);
-          setTimeout(() => setBellShaking(false), 10000);
-        }
-      } catch {}
-    };
-    checkNews();
-    const timer = setInterval(checkNews, 30000);
-    return () => clearInterval(timer);
-  }, [lastNewsTs]);
 
   const handleBellClick = () => {
     setBellShaking(false);
