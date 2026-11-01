@@ -21,6 +21,21 @@ const COPY = {
   },
 }
 
+const DONATION_COPY = {
+  success: {
+    title: 'حمایت شما ثبت شد',
+    text: 'ممنون که به ادامهٔ ولت‌مپ کمک کردید. این پرداخت روی اشتراک یا سطح دسترسی حساب اثری ندارد.',
+  },
+  cancelled: {
+    title: 'حمایت لغو شد',
+    text: 'پرداخت انجام نشد و مبلغی از حساب شما کم نشده است.',
+  },
+  failed: {
+    title: 'حمایت تکمیل نشد',
+    text: 'اگر مبلغی کسر شده باشد، تا تأیید نشدن درگاه به‌عنوان حمایت ثبت نمی‌شود. می‌توانید دوباره تلاش کنید.',
+  },
+}
+
 export default function PaymentResult() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -28,7 +43,8 @@ export default function PaymentResult() {
   const status = params.get('status') === 'success' || params.get('status') === 'cancelled'
     ? params.get('status')
     : 'failed'
-  const copy = COPY[status]
+  const isDonation = params.get('kind') === 'donation'
+  const copy = (isDonation ? DONATION_COPY : COPY)[status]
   const [returnTo, setReturnTo] = useState('/profile')
 
   useEffect(() => {
@@ -49,11 +65,11 @@ export default function PaymentResult() {
       <p className="mt-3 max-w-xs text-sm leading-7 text-gray-500 dark:text-gray-400">{copy.text}</p>
       <button
         type="button"
-        onClick={() => navigate(ok ? returnTo : '/plans', { replace: true })}
+        onClick={() => navigate(ok ? (isDonation ? '/' : returnTo) : (isDonation ? '/donate' : '/plans'), { replace: true })}
         className="mt-8 w-full rounded-2xl py-3.5 text-sm font-bold text-white"
         style={{ background: '#2ECC71' }}
       >
-        {ok ? 'ادامه' : 'بازگشت به پلن‌ها'}
+        {ok ? 'ادامه' : isDonation ? 'بازگشت به حمایت' : 'بازگشت به پلن‌ها'}
       </button>
       <button
         type="button"

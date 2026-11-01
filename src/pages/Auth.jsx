@@ -32,11 +32,12 @@ export default function Auth() {
     try {
       const session = await verifyOtp(payload)
       const from = location.state?.from?.pathname || ''
-      if (from.startsWith('/admin') && session?.user?.role === 'admin') {
-        navigate(from, { replace: true })
+      const safeFrom = from.startsWith('/') && !from.startsWith('//') && from !== '/auth' ? from : '/'
+      if (safeFrom.startsWith('/admin') && session?.user?.role !== 'admin') {
+        navigate('/', { replace: true })
         return
       }
-      navigate('/', { replace: true })
+      navigate(safeFrom, { replace: true })
     } catch {
       // toast middleware
     } finally {

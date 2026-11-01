@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
 import MyStation from "./pages/MyStation";
 import Contact from "./pages/Contact";
+import Donate from "./pages/Donate";
 import Help from "./pages/Help";
 import Splash from "./pages/Splash";
 import Onboarding from "./pages/Onboarding";
@@ -139,6 +140,7 @@ export default function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/my-station" element={<MyStation />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/donate" element={<Donate />} />
           <Route path="/help" element={<Help />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/personal-info" element={<PersonalInfo />} />

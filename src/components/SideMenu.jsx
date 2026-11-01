@@ -10,6 +10,7 @@ import {
   Navigation,
   HelpCircle,
   Phone,
+  Heart,
   LogOut,
   ChevronLeft,
   X,
@@ -35,6 +36,7 @@ const MENU_ITEMS = [
   { Icon: Navigation, label: "برنامه‌ریزی سفر", path: "/trip" },
   { Icon: HelpCircle, label: "راهنما و پشتیبانی", path: "/help" },
   { Icon: Phone, label: "ارتباط با ما", path: "/contact" },
+  { Icon: Heart, label: "حمایت از ما", path: "/donate" },
 ];
 
 export default function SideMenu({ open, onClose }) {
