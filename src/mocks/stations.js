@@ -85,6 +85,7 @@ export const mockStations = {
 
 const CROWD_KEY = 'voltmap_crowd_reports'
 const REPORT_WINDOW_MS = 30 * 60 * 1000  // پنجره زمانی: ۳۰ دقیقه اخیر برای محاسبه میانگین
+const INACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000
 const MIN_REPORTS = 2  // حداقل تعداد گزارش برای تأثیرگذاری روی وضعیت
 
 function readCrowdReports() {
@@ -106,17 +107,19 @@ export const crowdReports = {
     if (!all[stationId]) all[stationId] = []
     all[stationId].push({ type, ts: Date.now() })
     writeCrowdReports(all)
+    if (type === 'inactive') return null
     return this.computeStatus(stationId, all[stationId])
   },
 
   // الگوریتم تعیین وضعیت بر اساس گزارش‌های کاربران
-  // منطق: در پنجره ۳۰ دقیقه اخیر، اگه ≥ MIN_REPORTS گزارش باشه
+  // منطق: در پنجره ۳۰ دقیقه اخیر، اگه ≥ MIN_REPORTS گزارش خلوت/شلوغ باشه
   //       و اکثریت (>۵۰٪) بگن شلوغه → busy، وگرنه → available
+  // گزارش غیرفعال در این محاسبه نیست.
   // TODO: GET /stations/:id/crowd-status
   computeStatus(stationId, reports) {
     if (!reports || reports.length === 0) return null
     const cutoff = Date.now() - REPORT_WINDOW_MS
-    const recent = reports.filter(r => r.ts > cutoff)
+    const recent = reports.filter(r => r.ts > cutoff && (r.type === 'available' || r.type === 'busy'))
     if (recent.length < MIN_REPORTS) return null
     const busyCount = recent.filter(r => r.type === 'busy').length
     const ratio = busyCount / recent.length
@@ -135,12 +138,14 @@ export const crowdReports = {
     const all = readCrowdReports()
     const reports = all[stationId] || []
     const cutoff = Date.now() - REPORT_WINDOW_MS
-    const recent = reports.filter(r => r.ts > cutoff)
+    const recentAll = reports.filter(r => r.ts > cutoff)
+    const recent = recentAll.filter(r => r.type === 'available' || r.type === 'busy')
     return {
       total: reports.length,
       recent: recent.length,
       busyCount: recent.filter(r => r.type === 'busy').length,
       availableCount: recent.filter(r => r.type === 'available').length,
+      inactiveCount: reports.filter(r => r.type === 'inactive' && r.ts > Date.now() - INACTIVE_WINDOW_MS).length,
       computedStatus: this.computeStatus(stationId, reports),
     }
   },

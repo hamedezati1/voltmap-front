@@ -16,6 +16,7 @@ import {
   CheckCircle,
   XCircle,
   Phone,
+  PowerOff,
   Building2,
   Plug,
   ParkingCircle,
@@ -548,7 +549,7 @@ export default function StationDetail({ stations, setStations }) {
             )}
           </div>
 
-          {crowdStats && crowdStats.recent > 0 && (
+          {crowdStats && (crowdStats.recent > 0 || crowdStats.inactiveCount > 0) && (
             <div className="flex gap-2 mb-3">
               <div
                 className="flex-1 rounded-xl p-2.5 text-center"
@@ -572,6 +573,19 @@ export default function StationDetail({ stations, setStations }) {
                 </div>
                 <div style={{ fontSize: 11, color: "#E67E22" }}>گزارش شلوغ</div>
               </div>
+              {crowdStats.inactiveCount > 0 && (
+                <div
+                  className="flex-1 rounded-xl p-2.5 text-center"
+                  style={{ background: "#fdecea" }}
+                >
+                  <div
+                    style={{ fontSize: 18, fontWeight: 700, color: "#C0392B" }}
+                  >
+                    {crowdStats.inactiveCount}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#C0392B" }}>گزارش غیرفعال</div>
+                </div>
+              )}
             </div>
           )}
 
@@ -638,6 +652,25 @@ export default function StationDetail({ stations, setStations }) {
                   شلوغه
                 </button>
               </div>
+              <button
+                onClick={() => handleCrowdReport("inactive")}
+                disabled={crowdLoading}
+                className="mt-2 w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-opacity"
+                style={{
+                  background: "#fdecea",
+                  color: "#C0392B",
+                  border: "1.5px solid #C0392B",
+                  fontFamily: "Vazirmatn",
+                  opacity: crowdLoading ? 0.6 : 1,
+                }}
+              >
+                {crowdLoading ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <PowerOff size={15} />
+                )}
+                غیرفعال
+              </button>
               <button
                 onClick={() => setCrowdStep("idle")}
                 style={{

@@ -45,6 +45,17 @@ export default function DashboardPanel({ stations, setActive }) {
 
   const available = stations.filter((s) => s.status === "available").length;
   const busy = stations.filter((s) => s.status === "busy").length;
+  const inactiveAlerts = useMemo(
+    () =>
+      crowdStats
+        .filter((item) => Number(item.inactiveCount) >= 3)
+        .map((item) => ({
+          ...item,
+          station: stations.find((station) => station.id === item.stationId),
+        }))
+        .filter((item) => item.station?.status !== "offline"),
+    [crowdStats, stations],
+  );
   const waiting = stations.filter((s) => s.status === "waiting").length;
   const chartData = CHART_DATA;
   const chartDays = CHART_DAYS;
@@ -97,6 +108,81 @@ export default function DashboardPanel({ stations, setActive }) {
                   bg="#fef9e7"
                 />
               </div>
+
+              {inactiveAlerts.length > 0 && (
+                <div
+                  style={{
+                    background: "#fff5f5",
+                    borderRadius: 16,
+                    border: "1px solid #fecaca",
+                    padding: isMobile ? 14 : 18,
+                    marginBottom: isMobile ? 14 : 20,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <AlertCircle size={18} color="#C0392B" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#922B21" }}>
+                        کاربران می‌گویند این ایستگاه‌ها کار نمی‌کنند
+                      </div>
+                      <p style={{ margin: "6px 0 12px", fontSize: 12, lineHeight: 1.8, color: "#7B241C" }}>
+                        در ۲۴ ساعت اخیر حداقل ۳ نفر گزینهٔ «غیرفعال» را زده‌اند. وضعیت ایستگاه خودکار عوض نمی‌شود؛ از بخش ایستگاه‌ها آن را روی خاموش بگذارید.
+                      </p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {inactiveAlerts.map((item) => (
+                          <div
+                            key={item.stationId}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 8,
+                              background: "#fff",
+                              borderRadius: 12,
+                              padding: "10px 12px",
+                            }}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>
+                              {item.station?.name || `ایستگاه #${item.stationId}`}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: "#C0392B",
+                                background: "#fdecea",
+                                borderRadius: 20,
+                                padding: "3px 10px",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {Number(item.inactiveCount).toLocaleString("fa-IR")} گزارش غیرفعال
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActive("stations")}
+                        style={{
+                          marginTop: 12,
+                          border: "none",
+                          background: "#C0392B",
+                          color: "#fff",
+                          borderRadius: 10,
+                          padding: "8px 14px",
+                          fontFamily: "Vazirmatn",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        رفتن به ایستگاه‌ها
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* گزارش‌های وضعیت کاربری - فقط اگه گزارشی باشه نشون داده میشه */}
               {/* TODO: این داده باید از GET /stations/crowd-reports/summary بیاد */}
