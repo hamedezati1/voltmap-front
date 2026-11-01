@@ -3,6 +3,14 @@ import { useAuth } from '../context/AuthContext'
 import { isOnboardingDone } from '../lib/storage'
 import AppLoading from './AppLoading'
 
+/**
+ * مسیرهای اصلی اپ.
+ * در برنچ sms-otp-version ورود اجباری برداشته شده تا بدون توکن
+ * خانه، ارتباط با ما و بقیهٔ صفحات دیده شوند.
+ * برای برگشت به رفتار اصلی، GUEST_ACCESS را false کنید.
+ */
+const GUEST_ACCESS = true
+
 /** مسیرهای اصلی اپ — فقط برای کاربر لاگین‌شده */
 export function RequireAuth({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -10,7 +18,7 @@ export function RequireAuth({ children }) {
 
   if (loading) return <AppLoading />
 
-  if (!isAuthenticated) {
+  if (!GUEST_ACCESS && !isAuthenticated) {
     if (!isOnboardingDone()) {
       return <Navigate to="/splash" state={{ from: location }} replace />
     }
