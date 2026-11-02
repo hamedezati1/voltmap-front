@@ -79,4 +79,4 @@ export function AuthRoute({ children }) {
 
   return children
 }
-}
+
