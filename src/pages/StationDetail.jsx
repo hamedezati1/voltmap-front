@@ -455,10 +455,30 @@ export default function StationDetail({ stations, setStations }) {
               style={{
                 background: station.lat == null ? "#95a5a6" : "#2ECC71",
                 fontFamily: "Vazirmatn",
+                fontSize: 13,
                 opacity: station.lat == null ? 0.7 : 1,
               }}
             >
-              <Navigation size={16} /> مسیریابی
+              <Navigation size={16} />
+              مسیریابی با گوگل مپ
+            </button>
+            <button
+              disabled={station.lat == null || station.lng == null}
+              onClick={() =>
+                window.open(
+                  `https://neshan.org/maps/routing/car/destination/${station.lat},${station.lng}`,
+                  "_blank",
+                )
+              }
+              className="flex-1 py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
+              style={{
+                background: station.lat == null ? "#95a5a6" : "#1976d2",
+                fontFamily: "Vazirmatn",
+                opacity: station.lat == null ? 0.7 : 1,
+                fontSize: 13,
+              }}
+            >
+              <Navigation size={16} /> مسیریابی با نشان
             </button>
             <button
               onClick={handleToggleFavorite}
@@ -549,45 +569,56 @@ export default function StationDetail({ stations, setStations }) {
             )}
           </div>
 
-          {crowdStats && (crowdStats.recent > 0 || crowdStats.inactiveCount > 0) && (
-            <div className="flex gap-2 mb-3">
-              <div
-                className="flex-1 rounded-xl p-2.5 text-center"
-                style={{ background: "#e8faf0" }}
-              >
-                <div
-                  style={{ fontSize: 18, fontWeight: 700, color: "#27AE60" }}
-                >
-                  {crowdStats.availableCount}
-                </div>
-                <div style={{ fontSize: 11, color: "#27AE60" }}>گزارش خلوت</div>
-              </div>
-              <div
-                className="flex-1 rounded-xl p-2.5 text-center"
-                style={{ background: "#fef3e2" }}
-              >
-                <div
-                  style={{ fontSize: 18, fontWeight: 700, color: "#E67E22" }}
-                >
-                  {crowdStats.busyCount}
-                </div>
-                <div style={{ fontSize: 11, color: "#E67E22" }}>گزارش شلوغ</div>
-              </div>
-              {crowdStats.inactiveCount > 0 && (
+          {crowdStats &&
+            (crowdStats.recent > 0 || crowdStats.inactiveCount > 0) && (
+              <div className="flex gap-2 mb-3">
                 <div
                   className="flex-1 rounded-xl p-2.5 text-center"
-                  style={{ background: "#fdecea" }}
+                  style={{ background: "#e8faf0" }}
                 >
                   <div
-                    style={{ fontSize: 18, fontWeight: 700, color: "#C0392B" }}
+                    style={{ fontSize: 18, fontWeight: 700, color: "#27AE60" }}
                   >
-                    {crowdStats.inactiveCount}
+                    {crowdStats.availableCount}
                   </div>
-                  <div style={{ fontSize: 11, color: "#C0392B" }}>گزارش غیرفعال</div>
+                  <div style={{ fontSize: 11, color: "#27AE60" }}>
+                    گزارش خلوت
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+                <div
+                  className="flex-1 rounded-xl p-2.5 text-center"
+                  style={{ background: "#fef3e2" }}
+                >
+                  <div
+                    style={{ fontSize: 18, fontWeight: 700, color: "#E67E22" }}
+                  >
+                    {crowdStats.busyCount}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#E67E22" }}>
+                    گزارش شلوغ
+                  </div>
+                </div>
+                {crowdStats.inactiveCount > 0 && (
+                  <div
+                    className="flex-1 rounded-xl p-2.5 text-center"
+                    style={{ background: "#fdecea" }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: "#C0392B",
+                      }}
+                    >
+                      {crowdStats.inactiveCount}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#C0392B" }}>
+                      گزارش غیرفعال
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
           {crowdStep === "idle" && (
             <button
@@ -827,7 +858,11 @@ export default function StationDetail({ stations, setStations }) {
             <div className="flex items-center justify-between">
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} type="button" onClick={() => setReviewRating(n)}>
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setReviewRating(n)}
+                  >
                     <Star
                       size={20}
                       color="#F39C12"
