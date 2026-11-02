@@ -1,9 +1,9 @@
-import { isPaidMember } from '../../lib/membership'
-
 /**
- * برنامه‌ریزی سفر برای اعضای پرو و پلاس فعال است.
+ * روی برنچ free-trip برنامه‌ریزی سفر برای همهٔ کاربران، از جمله رایگان، باز است
+ * و به درگاه پرداخت فرستاده نمی‌شوند.
  * (نام تابع برای سازگاری با کدهای قبلی مانده است)
+ * برگشت به برنچ main همان قفل اشتراک پرو و پلاس را برمی‌گرداند.
  */
-export function isGoldMember(user) {
-  return isPaidMember(user)
+export function isGoldMember() {
+  return true
 }
