@@ -443,7 +443,7 @@ export default function StationDetail({ stations, setStations }) {
             )}
           </div>
 
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <button
               disabled={station.lat == null || station.lng == null}
               onClick={() =>
@@ -451,11 +451,11 @@ export default function StationDetail({ stations, setStations }) {
                   `https://maps.google.com/?q=${station.lat},${station.lng}`,
                 )
               }
-              className="flex-1 py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
+              className="flex-1 p-2 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
               style={{
                 background: station.lat == null ? "#95a5a6" : "#2ECC71",
                 fontFamily: "Vazirmatn",
-                fontSize: 13,
+
                 opacity: station.lat == null ? 0.7 : 1,
               }}
             >
@@ -495,6 +495,84 @@ export default function StationDetail({ stations, setStations }) {
                 <Loader2 size={16} className="animate-spin" />
               ) : (
                 <Heart size={16} fill={isFav ? "#e74c3c" : "none"} />
+              )}
+            </button>
+          </div> */}
+          <div className="flex items-stretch gap-2 w-full">
+            {/* Google Maps */}
+            <button
+              disabled={station.lat == null || station.lng == null}
+              onClick={() =>
+                window.open(
+                  `https://maps.google.com/?q=${station.lat},${station.lng}`,
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
+              className="flex-1 min-w-0 flex items-center justify-center gap-2.5  rounded-2xl text-white transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: "linear-gradient(135deg, #34d399, #059669)",
+                fontFamily: "Vazirmatn",
+              }}
+            >
+              <Navigation size={21} strokeWidth={2.2} />
+
+              <span className="flex flex-col items-start leading-tight">
+                <span className="text-xs opacity-90">مسیریابی</span>
+                <span className="text-sm font-bold mt-1 whitespace-nowrap">
+                  گوگل مپ
+                </span>
+              </span>
+            </button>
+
+            {/* Neshan */}
+            <button
+              disabled={station.lat == null || station.lng == null}
+              onClick={() =>
+                window.open(
+                  `https://neshan.org/maps/routing/car/destination/${station.lat},${station.lng}`,
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
+              className="flex-1 min-w-0 flex items-center justify-center gap-2.5 p-1 rounded-2xl text-white transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+                fontFamily: "Vazirmatn",
+              }}
+            >
+              <MapPin size={21} strokeWidth={2.2} />
+
+              <span className="flex flex-col items-start leading-tight">
+                <span className="text-xs opacity-90">مسیریابی</span>
+                <span className="text-sm font-bold mt-1 whitespace-nowrap">
+                  نشان
+                </span>
+              </span>
+            </button>
+
+            {/* Favorite */}
+            <button
+              onClick={handleToggleFavorite}
+              disabled={favLoading}
+              aria-label={
+                isFav ? "حذف از علاقه‌مندی‌ها" : "افزودن به علاقه‌مندی‌ها"
+              }
+              className="shrink-0 w-12 flex items-center justify-center rounded-2xl border transition-all duration-200 active:scale-95 disabled:opacity-50"
+              style={{
+                borderColor: isFav ? "#fecaca" : "#e5e7eb",
+                background: isFav ? "#fef2f2" : "#fff",
+                color: isFav ? "#ef4444" : "#9ca3af",
+              }}
+            >
+              {favLoading ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <Heart
+                  size={21}
+                  fill={isFav ? "#ef4444" : "none"}
+                  strokeWidth={2}
+                />
               )}
             </button>
           </div>

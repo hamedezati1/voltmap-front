@@ -160,7 +160,7 @@ export default function Vehicles() {
         )}
 
         {!loading && vehicles.length === 0 && (
-          <div className="flex flex-col items-center gap-3 rounded-3xl bg-white py-12 shadow-sm dark:bg-gray-800">
+          <div className="flex flex-col items-center gap-3 rounded-3xl bg-white py-12 shadow-sm dark:bg-gray-800 mt-10">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 dark:bg-gray-700/50">
               <Car size={26} className="text-gray-300 dark:text-gray-500" />
             </div>
