@@ -131,7 +131,7 @@ export default function Donate() {
                   className="rounded-2xl px-3 py-3 text-sm font-bold"
                   style={{
                     background: selected ? "#2ECC71" : "transparent",
-                    color: selected ? "#fff" : undefined,
+                    color: selected ? "#fff" : "#fff",
                     border: selected
                       ? "1.5px solid #2ECC71"
                       : "1px solid #e5e7eb",
